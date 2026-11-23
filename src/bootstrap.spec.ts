@@ -17,6 +17,12 @@ describe('production application configuration', () => {
 		const response = await request(app.getHttpServer()).get('/health').expect(200);
 		expect(response.body).toEqual({ status: 'UP' });
 	});
+	it('publishes request metrics without raw URLs or credentials', async () => {
+		await request(app.getHttpServer()).get('/health?token=secret-query').set('Authorization', 'Bearer secret-token').expect(200);
+		const response = await request(app.getHttpServer()).get('/metrics').expect(200);
+		expect(response.text).toContain('bff_http_requests_total{method="GET",route="/health",status="200"} 1');
+		expect(response.text).not.toContain('secret-');
+	});
 	it('exposes pagination headers to the credentialed browser origin', async () => {
 		const response = await request(app.getHttpServer()).get('/health').set('Origin', 'http://localhost:4200').expect(200);
 		expect(response.headers['access-control-allow-origin']).toBe('http://localhost:4200');

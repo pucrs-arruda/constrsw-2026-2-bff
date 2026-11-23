@@ -2,10 +2,17 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { json, raw, urlencoded, Request, Response, NextFunction } from 'express';
 import { bearerTokenOf } from './common/auth/bearer-token';
+import { HttpMetrics } from './common/health/http-metrics';
 
 /** Use with NestFactory.create(AppModule, { bodyParser: false }). */
 export function configureApp(app: INestApplication): void {
 	const origin = app.get(ConfigService).get<string>('BFF_ORIGIN', 'http://localhost:4200');
+	const metrics = app.get(HttpMetrics);
+	app.use((request: Request, response: Response, next: NextFunction) => {
+		const started = Date.now();
+		response.once('finish', () => metrics.observe(request, response, started));
+		next();
+	});
 	app.enableCors({ origin, credentials: true, exposedHeaders: ['Location', 'X-Total-Count', 'Retry-After'] });
 	app.use((request: Request, response: Response, next: NextFunction) => {
 		const cookieAuthenticated = request.headers.authorization === undefined && bearerTokenOf(request) !== undefined;
