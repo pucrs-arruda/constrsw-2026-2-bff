@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
 import { httpFixture, Reply } from './testing/http-fixture';
 import { course, COURSE_ID, currentClass } from './testing/domain-fixtures';
+import { request as rawRequest } from 'node:http';
 
 describe('Courses BFF over real HTTP boundaries', () => {
 	let app: INestApplication;
@@ -121,6 +122,25 @@ describe('Courses BFF over real HTTP boundaries', () => {
 		courseReply = { status: 400, body: '{}' };
 		await request(app.getHttpServer()).get('/api/v1/courses/a%2Fb%3Fx%3D1').expect(400);
 		expect(courses.seen[0].url).toBe('/api/v1/courses/a%2Fb%3Fx%3D1');
+	});
+	it.each(['%2e', '%2e%2e'])('rejects decoded dot identifier %s before URL normalization', async identifier => {
+		await app.listen(0, '127.0.0.1');
+		const port = app.getHttpServer().address().port;
+		const status = await new Promise<number>((resolve, reject) => {
+			const pending = rawRequest({ host: '127.0.0.1', port, method: 'GET', path: `/api/v1/courses/${identifier}` }, response => { response.resume(); response.on('end', () => resolve(response.statusCode!)); });
+			pending.on('error', reject); pending.end();
+		});
+		expect(status).toBe(400); expect(courses.seen).toHaveLength(0);
+	});
+	it.each(['get', 'head'])('does not turn empty %s bodies into dependency failures', async method => {
+		await (request(app.getHttpServer()) as any)[method]('/api/v1/courses').set('Content-Type', 'application/json').set('Content-Length', '0').expect(200);
+		expect(courses.seen[0].method).toBe(method.toUpperCase());
+		expect(courses.seen[0].body).toBe('');
+	});
+	it('rejects nonempty GET bodies without affecting the dependency circuit', async () => {
+		for (let i = 0; i < 2; i++) await request(app.getHttpServer()).get('/api/v1/courses').set('Content-Type', 'application/json').send('{}').expect(400);
+		await request(app.getHttpServer()).get('/api/v1/courses').expect(200);
+		expect(courses.seen).toHaveLength(1);
 	});
 	it('keeps Classes circuit failures independent of Courses writes', async () => {
 		classesReply = { status: 503 };

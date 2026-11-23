@@ -49,8 +49,6 @@ async function main() {
   await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
   Object.assign(process.env, { PORT: '0', COURSES_BASE_URL: courses, CLASSES_BASE_URL: `http://127.0.0.1:${fixture.address().port}`, BFF_HTTP_RETRIES: '0', BFF_HTTP_TIMEOUT_MS: '5000' });
   // Load after setting environment so all configured providers use this run's origins.
-  const { AppModule } = require('../dist/app.module');
-  const { configureApp } = require('../dist/bootstrap');
   let app;
   let created;
   let root;
@@ -62,6 +60,8 @@ async function main() {
     return text ? JSON.parse(text) : undefined;
   }
   try {
+    const { AppModule } = require('../dist/app.module');
+    const { configureApp } = require('../dist/bootstrap');
     app = await NestFactory.create(AppModule, { bodyParser: false, logger: false });
     configureApp(app); await app.listen(0, '127.0.0.1');
     root = `${await app.getUrl()}/api/v1/courses`;

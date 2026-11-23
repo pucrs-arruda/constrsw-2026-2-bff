@@ -77,5 +77,5 @@ export class RoomsController {
 }
 
 function hasBody(request: Request): boolean {
-	return request.body !== undefined;
+	return request.body !== undefined && request.headers['content-length'] !== '0';
 }

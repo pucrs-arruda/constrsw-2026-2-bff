@@ -144,4 +144,19 @@ O audit do lockfile herdado reporta avisos, incluindo dois de severidade alta
 na cadeia platform-express/multer. Este módulo não usa upload multipart;
 uma atualização compartilhada dessa cadeia deve ser coordenada com a turma.
 
-Esta contribuição permanece na branch local `grupo05`. A base não foi publicada.
+Esta contribuição permanece na branch `grupo05`. A base não foi publicada.
+
+GET/HEAD com corpo vazio são encaminhados sem corpo; corpos não vazios nesses
+métodos recebem CO-400. Identificadores `.` e `..` também recebem CO-400 antes
+da normalização de URL. Cancelamentos do navegador não contam como falhas dos
+serviços e liberam uma tentativa de recuperação cancelada.
+
+Validação em 2026-11-23: 95 testes passaram; o contrato offline verificou 352
+referências e 19 operações. O E2E com Courses/OAuth/Keycloak reais verificou 23
+chamadas HTTP e limpou sua disciplina. Classes foi uma fixture explícita. A
+imagem Docker compilou e respondeu health e métricas como usuário não-root.
+
+O professor publicará um runner E2E para a turma. O script local acima é uma
+verificação provisória: os testes de Courses devem ser adaptados ao runner
+oficial quando estiver disponível. A abertura do PR aguarda essa integração,
+conforme solicitado pelo grupo.

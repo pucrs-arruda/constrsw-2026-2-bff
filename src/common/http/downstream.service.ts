@@ -65,7 +65,7 @@ export class DownstreamService {
 		for (let attempt = 1; attempt <= attempts; attempt++) {
 			try {
 				if (request.signal?.aborted) throw new DownstreamUnavailableError(this.options.name, 'request cancelled');
-				return await this.options.breaker.run(() => this.callOnce(request), Date.now, response => response.status >= 500);
+				return await this.options.breaker.run(() => this.callOnce(request), Date.now, response => response.status >= 500, () => request.signal?.aborted === true);
 			}
 			catch (error) {
 				if (error instanceof CircuitOpenError) {

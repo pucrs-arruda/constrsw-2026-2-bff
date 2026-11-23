@@ -8,6 +8,36 @@ function client(baseUrl: string, overrides = {}) {
 }
 
 describe('HTTP downstream boundary', () => {
+	it('does not open a healthy downstream circuit when callers cancel', async () => {
+		const fixture = await httpFixture(request => request.url === '/slow' ? { delay: 500 } : {});
+		try {
+			const { http, breaker } = client(fixture.url);
+			for (let i = 0; i < 2; i++) {
+				const abort = new AbortController();
+				const pending = http.send({ method: 'GET', path: '/slow', signal: abort.signal });
+				setTimeout(() => abort.abort(), 30);
+				await expect(pending).rejects.toBeInstanceOf(DownstreamUnavailableError);
+			}
+			expect(breaker.currentState()).toBe('closed');
+			expect((await http.send({ method: 'GET', path: '/healthy' })).status).toBe(200);
+		} finally { await fixture.close(); }
+	});
+	it('releases a cancelled half-open probe without recording a dependency failure', async () => {
+		const fixture = await httpFixture(request => request.url === '/failure' ? { status: 503 } : request.url === '/slow' ? { delay: 500 } : {});
+		try {
+			const breaker = new CircuitBreaker({ name: 'test', errorThresholdPercentage: 50, resetTimeoutMs: 10, volumeThreshold: 1, rollingWindowMs: 10000 });
+			const { http } = client(fixture.url, { breaker });
+			await http.send({ method: 'GET', path: '/failure' });
+			await new Promise(resolve => setTimeout(resolve, 20));
+			const abort = new AbortController();
+			const pending = http.send({ method: 'GET', path: '/slow', signal: abort.signal });
+			setTimeout(() => abort.abort(), 30);
+			await expect(pending).rejects.toBeInstanceOf(DownstreamUnavailableError);
+			expect(breaker.currentState()).toBe('half-open');
+			expect((await http.send({ method: 'GET', path: '/healthy' })).status).toBe(200);
+			expect(breaker.currentState()).toBe('closed');
+		} finally { await fixture.close(); }
+	});
 	it('preserves Location and pagination totals without leaking Set-Cookie', async () => {
 		const fixture = await httpFixture(() => ({ status: 201, body: '{}', headers: { location: '/api/v1/rooms/1', 'x-total-count': '41', 'set-cookie': 'private=secret' } }));
 		try {

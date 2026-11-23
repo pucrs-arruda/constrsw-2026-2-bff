@@ -126,6 +126,10 @@ describe('Proxy de rooms (fronteira BFF↔domínio)', () => {
 		await request(app.getHttpServer()).patch('/v1/rooms/abc').send(body).expect(200);
 		expect(sent[0].body).toBe(JSON.stringify(body));
 	});
+	it('não inventa corpo JSON em GET com Content-Length zero', async () => {
+		await request(app.getHttpServer()).get('/v1/rooms').set('Content-Type', 'application/json').set('Content-Length', '0').expect(200);
+		expect(sent[0].body).toBeUndefined();
+	});
 
 	it('traduz dependência fora do ar em 503 problem+json estável (AD-10)', async () => {
 		nextResponse = new DownstreamUnavailableError('rooms', 'circuito aberto');

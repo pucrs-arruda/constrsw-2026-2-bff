@@ -64,7 +64,7 @@ export class CircuitBreaker {
 	 * Executa `call` sob o disjuntor. Lança {@link CircuitOpenError} sem tocar no downstream
 	 * quando o circuito está aberto.
 	 */
-	async run<T>(call: () => Promise<T>, now: () => number = Date.now, failed: (result: T) => boolean = () => false): Promise<T> {
+	async run<T>(call: () => Promise<T>, now: () => number = Date.now, failed: (result: T) => boolean = () => false, ignoreFailure: (error: unknown) => boolean = () => false): Promise<T> {
 		const state = this.currentState(now());
 		const generation = this.generation;
 
@@ -87,7 +87,11 @@ export class CircuitBreaker {
 			return result;
 		}
 		catch (error) {
-			if (generation === this.generation) this.onFailure(now());
+			if (generation === this.generation) {
+				if (ignoreFailure(error)) {
+					if (state === 'half-open') this.halfOpenInFlight = false;
+				} else this.onFailure(now());
+			}
 			throw error;
 		}
 	}

@@ -33,59 +33,59 @@
 **Files:** Existing scaffold, `package.json`, `package-lock.json`, `.gitignore`.
 **Interfaces:** Produces existing `AppModule`, `DownstreamService.send(DownstreamRequest): Promise<DownstreamResponse>` and `CircuitBreaker.run<T>(call): Promise<T>`.
 
-- [ ] Merge `8bb9c50` preserving history; run `npm ci`, baseline tests and build.
-- [ ] Capture install/build failures before making minimal dependency compatibility changes.
-- [ ] Preserve the baseline 15 tests and commit integration/compatibility fixes.
+- [x] Merge `8bb9c50` preserving history; run `npm ci`, baseline tests and build.
+- [x] Capture install/build failures before making minimal dependency compatibility changes.
+- [x] Preserve the baseline 15 tests and commit integration/compatibility fixes.
 
 ### Task 2: Correct shared HTTP behavior
 
 **Files:** `src/common/http/{downstream.service,circuit-breaker}.ts`, adjacent tests, Rooms controller and its contract tests.
 **Interfaces:** Extend DownstreamResponse with optional safe headers; DownstreamRequest with optional AbortSignal; DownstreamOptions with retryMethods. HTTP failures remain responses, counted as breaker failures without automatic replay of writes.
 
-- [ ] Write failing real-HTTP tests for Location/total-count, redirects, 5xx circuit opening, network timeout, cancellation, body-read failure and retry bounds. Add breaker concurrency regression.
-- [ ] Run focused tests and confirm behavioral failures.
-- [ ] Implement header preservation, manual redirects, failure accounting, generation-aware recovery and configurable safe retries. Redact request/query/error details in logs.
-- [ ] Add failing Rooms tests for empty bodies and headers; correct controller forwarding and encoded path segments.
-- [ ] Run all tests/build and commit.
+- [x] Write failing real-HTTP tests for Location/total-count, redirects, 5xx circuit opening, network timeout, cancellation, body-read failure and retry bounds. Add breaker concurrency regression.
+- [x] Run focused tests and confirm behavioral failures.
+- [x] Implement header preservation, manual redirects, failure accounting, generation-aware recovery and configurable safe retries. Redact request/query/error details in logs.
+- [x] Add failing Rooms tests for empty bodies and headers; correct controller forwarding and encoded path segments.
+- [x] Run all tests/build and commit.
 
 ### Task 3: Browser-compatible application bootstrap
 
 **Files:** `src/bootstrap.ts`, `src/main.ts`, `src/common/auth/bearer-token.ts`, auth/bootstrap tests, health/metrics support.
 **Interfaces:** `configureApp(app: INestApplication): void`; `bearerTokenOf(request: Request): string | undefined`. Reads SESSION_COOKIE_NAME/BFF_ORIGIN and preserves request.bearerToken hook.
 
-- [ ] Write failing HTTP tests for OAuth JSON cookie, explicit Bearer precedence, malformed credentials, trusted/untrusted Origin and no refresh-token forwarding.
-- [ ] Implement cookie extraction and unsafe-origin rejection; configure exact-origin CORS and exposed response headers.
-- [ ] Preserve raw bodies for Courses while keeping parsed Rooms bodies. Expose health and low-cardinality request metrics without secrets.
-- [ ] Run suite/build and commit.
+- [x] Write failing HTTP tests for OAuth JSON cookie, explicit Bearer precedence, malformed credentials, trusted/untrusted Origin and no refresh-token forwarding.
+- [x] Implement cookie extraction and unsafe-origin rejection; configure exact-origin CORS and exposed response headers.
+- [x] Preserve raw bodies for Courses while keeping parsed Rooms bodies. Expose health and low-cardinality request metrics without secrets.
+- [x] Run suite/build and commit.
 
 ### Task 4: Courses routes and Classes composition
 
 **Files:** `src/modules/courses/{courses.module,courses.controller,courses.service,current-semester}.ts`, HTTP integration/semester tests, `src/app.module.ts`.
 **Interfaces:** `currentSemester(date: Date): {year:number;semester:number}`; `CoursesService.forward(request: DownstreamRequest, compose?: 'collection'|'item'): Promise<DownstreamResponse>`; injectable clock provider.
 
-- [ ] Write and run failing tests for all 19 routes/methods using actual Nest application and HTTP fixture servers.
-- [ ] Test exact Sao Paulo July/August/year boundaries, course-field/order preservation, current associations, disabled/unrelated classes, empty results and unavailable/malformed dependencies.
-- [ ] Add Nest controller, service and configured downstream providers; encode path segments, preserve queries/status/body/headers and normalize only infrastructure/composition failure into CO-503.
-- [ ] Compose only successful principal GETs, query Classes once per collection, filter current links and include classes:[] when appropriate.
-- [ ] Run suite/build and commit.
+- [x] Write and run failing tests for all 19 routes/methods using actual Nest application and HTTP fixture servers.
+- [x] Test exact Sao Paulo July/August/year boundaries, course-field/order preservation, current associations, disabled/unrelated classes, empty results and unavailable/malformed dependencies.
+- [x] Add Nest controller, service and configured downstream providers; encode path segments, preserve queries/status/body/headers and normalize only infrastructure/composition failure into CO-503.
+- [x] Compose only successful principal GETs, query Classes once per collection, filter current links and include classes:[] when appropriate.
+- [x] Run suite/build and commit.
 
 ### Task 5: Offline contract and executable deployment artifacts
 
 **Files:** `openapi/`, `scripts/validate-contract.cjs`, `.env.example`, `compose.courses.yaml`, `Dockerfile`, `.dockerignore`, `README.md`.
 **Interfaces:** Self-contained Courses/health OpenAPI with corrected CourseView; npm contract script; Compose override for base BFF with no other groups in depends_on.
 
-- [ ] Add a failing schema check demonstrating closed Course plus allOf rejects classes.
-- [ ] Copy required domain contracts/transitive references, derive valid CourseView and validate references/composed/proxy payloads offline.
-- [ ] Document runtime environment, cookie alignment, inherited Rooms limitations and base integration instructions.
-- [ ] Run full suite, contract check, build and Docker build; commit artifacts.
+- [x] Add a failing schema check demonstrating closed Course plus allOf rejects classes.
+- [x] Copy required domain contracts/transitive references, derive valid CourseView and validate references/composed/proxy payloads offline.
+- [x] Document runtime environment, cookie alignment, inherited Rooms limitations and base integration instructions.
+- [x] Run full suite, contract check, build and Docker build; commit artifacts.
 
 ### Task 6: Real-stack E2E and final review
 
 **Files:** `scripts/e2e.cjs`, fixture utilities, README validation evidence.
 **Interfaces:** npm E2E command exercises OAuth login cookie, real Courses CRUD, BFF composition and cleanup; accepts environment URLs/credentials privately.
 
-- [ ] Run BFF with real Courses/OAuth/Keycloak, explicit Classes fixture and required infrastructure only.
-- [ ] Exercise login, principal reads/composition, secondary proxies, writes, refusal propagation, Classes failure, metrics and cleanup.
-- [ ] Run full tests, contracts, build and Docker verification; request fresh whole-branch review.
-- [ ] Reproduce material review findings with failing tests, fix and verify the suite; commit final changes.
-- [ ] Report results and concrete limitations; leave publication to the user.
+- [x] Run BFF with real Courses/OAuth/Keycloak, explicit Classes fixture and required infrastructure only.
+- [x] Exercise login, principal reads/composition, secondary proxies, writes, refusal propagation, Classes failure, metrics and cleanup.
+- [x] Run full tests, contracts, build and Docker verification; request fresh whole-branch review.
+- [x] Reproduce material review findings with failing tests, fix and verify the suite; commit final changes.
+- [x] Report results and concrete limitations; leave publication to the user.
