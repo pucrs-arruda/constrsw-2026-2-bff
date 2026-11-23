@@ -15,6 +15,7 @@ export interface DownstreamResponse {
 	readonly status: number;
 	readonly body: string;
 	readonly contentType: string | null;
+	readonly headers?: Readonly<Record<string, string>>;
 }
 
 export interface DownstreamRequest {
@@ -25,6 +26,7 @@ export interface DownstreamRequest {
 	readonly contentType?: string;
 	/** Token do usuário, repassado como `Authorization: Bearer` (AD-4). */
 	readonly bearerToken?: string;
+	readonly signal?: AbortSignal;
 }
 
 export interface DownstreamOptions {
@@ -33,6 +35,7 @@ export interface DownstreamOptions {
 	readonly timeoutMs: number;
 	readonly retries: number;
 	readonly breaker: CircuitBreaker;
+	readonly retryMethods?: readonly string[];
 }
 
 /** Métodos em que repetir a chamada não cria efeito novo (RFC 9110). */
@@ -52,7 +55,8 @@ export class DownstreamService {
 	constructor(private readonly options: DownstreamOptions) {}
 
 	async send(request: DownstreamRequest): Promise<DownstreamResponse> {
-		const attempts = IDEMPOTENT.has(request.method.toUpperCase())
+		const retryMethods = this.options.retryMethods ?? [...IDEMPOTENT];
+		const attempts = retryMethods.includes(request.method.toUpperCase())
 			? this.options.retries + 1
 			: 1;
 
@@ -60,16 +64,18 @@ export class DownstreamService {
 
 		for (let attempt = 1; attempt <= attempts; attempt++) {
 			try {
-				return await this.options.breaker.run(() => this.callOnce(request));
+				if (request.signal?.aborted) throw new DownstreamUnavailableError(this.options.name, 'request cancelled');
+				return await this.options.breaker.run(() => this.callOnce(request), Date.now, response => response.status >= 500);
 			}
 			catch (error) {
 				if (error instanceof CircuitOpenError) {
 					throw new DownstreamUnavailableError(this.options.name, 'circuito aberto');
 				}
-				lastReason = error instanceof Error ? error.message : String(error);
+				lastReason = request.signal?.aborted ? 'request cancelled' : 'network failure or timeout';
 				this.logger.warn(
-					`${request.method} ${request.path} em ${this.options.name}: tentativa ${attempt}/${attempts} falhou (${lastReason})`,
+					`${this.options.name}: attempt ${attempt}/${attempts} failed (${lastReason})`,
 				);
+				if (request.signal?.aborted) break;
 				if (attempt < attempts) {
 					await this.backoff(attempt);
 				}
@@ -92,13 +98,20 @@ export class DownstreamService {
 			method: request.method,
 			headers,
 			body: request.body,
-			signal: AbortSignal.timeout(this.options.timeoutMs),
+			redirect: 'manual',
+			signal: request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(this.options.timeoutMs)]) : AbortSignal.timeout(this.options.timeoutMs),
 		});
+		const responseHeaders: Record<string, string> = {};
+		for (const name of ['location', 'x-total-count', 'retry-after', 'www-authenticate', 'etag', 'last-modified', 'cache-control']) {
+			const value = response.headers.get(name);
+			if (value !== null) responseHeaders[name] = value;
+		}
 
 		return {
 			status: response.status,
 			body: await response.text(),
 			contentType: response.headers.get('content-type'),
+			headers: responseHeaders,
 		};
 	}
 

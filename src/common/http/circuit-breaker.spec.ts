@@ -6,6 +6,21 @@ import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
  * (ou qualquer outra) continue sendo possível sem mudar o contrato.
  */
 describe('CircuitBreaker', () => {
+	it('an older success cannot finish a pending half-open recovery probe', async () => {
+		let now = 0;
+		const breaker = new CircuitBreaker({ name: 'test', errorThresholdPercentage: 50, resetTimeoutMs: 10, volumeThreshold: 1, rollingWindowMs: 1000 });
+		let finishOld!: (value: string) => void;
+		let finishProbe!: (value: string) => void;
+		const old = breaker.run(() => new Promise<string>(resolve => finishOld = resolve), () => now);
+		await breaker.run(() => Promise.reject(new Error('down')), () => now).catch(() => {});
+		now = 10;
+		const probe = breaker.run(() => new Promise<string>(resolve => finishProbe = resolve), () => now);
+		finishOld('old'); await old;
+		expect(breaker.currentState(now)).toBe('half-open');
+		await expect(breaker.run(async () => 'extra', () => now)).rejects.toBeInstanceOf(CircuitOpenError);
+		finishProbe('recovered'); await probe;
+		expect(breaker.currentState(now)).toBe('closed');
+	});
 	const options = {
 		name: 'rooms',
 		errorThresholdPercentage: 50,

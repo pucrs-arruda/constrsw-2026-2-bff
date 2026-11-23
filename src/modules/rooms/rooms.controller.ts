@@ -31,12 +31,12 @@ export class RoomsController {
 
 	@All(':id')
 	item(@Req() request: Request, @Res() response: Response): Promise<void> {
-		return this.proxy(request, response, `/${request.params.id}`);
+		return this.proxy(request, response, `/${encodeURIComponent(String(request.params.id))}`);
 	}
 
 	@All(':id/accessibility-features')
 	features(@Req() request: Request, @Res() response: Response): Promise<void> {
-		return this.proxy(request, response, `/${request.params.id}/accessibility-features`);
+		return this.proxy(request, response, `/${encodeURIComponent(String(request.params.id))}/accessibility-features`);
 	}
 
 	@All(':id/accessibility-features/:featureId')
@@ -44,7 +44,7 @@ export class RoomsController {
 		return this.proxy(
 			request,
 			response,
-			`/${request.params.id}/accessibility-features/${request.params.featureId}`,
+			`/${encodeURIComponent(String(request.params.id))}/accessibility-features/${encodeURIComponent(String(request.params.featureId))}`,
 		);
 	}
 
@@ -64,6 +64,7 @@ export class RoomsController {
 		if (result.contentType) {
 			response.setHeader('content-type', result.contentType);
 		}
+		for (const [name, value] of Object.entries(result.headers ?? {})) response.setHeader(name, value);
 		response.status(result.status);
 		// 204 não tem corpo; mandar string vazia evita content-length indevido.
 		if (result.body) {
@@ -76,5 +77,5 @@ export class RoomsController {
 }
 
 function hasBody(request: Request): boolean {
-	return request.body !== undefined && Object.keys(request.body as object).length > 0;
+	return request.body !== undefined;
 }

@@ -115,6 +115,18 @@ describe('Proxy de rooms (fronteira BFF↔domínio)', () => {
 		expect(response.text).toBe('');
 	});
 
+	it('preserva Location e total de paginação', async () => {
+		nextResponse = { status: 201, body: '{}', contentType: 'application/json', headers: { location: '/api/v1/rooms/1', 'x-total-count': '25' } };
+		const response = await request(app.getHttpServer()).post('/v1/rooms').send({ code: '1' }).expect(201);
+		expect(response.headers.location).toBe('/api/v1/rooms/1');
+		expect(response.headers['x-total-count']).toBe('25');
+	});
+
+	it.each([{}, []])('preserva corpo JSON vazio %j', async body => {
+		await request(app.getHttpServer()).patch('/v1/rooms/abc').send(body).expect(200);
+		expect(sent[0].body).toBe(JSON.stringify(body));
+	});
+
 	it('traduz dependência fora do ar em 503 problem+json estável (AD-10)', async () => {
 		nextResponse = new DownstreamUnavailableError('rooms', 'circuito aberto');
 
