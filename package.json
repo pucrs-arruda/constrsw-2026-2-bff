@@ -1,7 +1,7 @@
 {
   "name": "constrsw-bff",
   "version": "1.0.0",
-  "description": "BFF do Closed CRAS \u00e2\u20ac\u201d composi\u00c3\u00a7\u00c3\u00a3o e proxy entre o frontend Angular e os nove contextos",
+  "description": "BFF do Closed CRAS — composição e proxy entre o frontend Angular e os nove contextos",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -16,7 +16,8 @@
     "test:watch": "npm test -- --watch",
     "test:cov": "npm test -- --coverage",
     "test:contract": "node scripts/validate-contract.cjs",
-    "test:e2e": "node scripts/e2e.cjs"
+    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand",
+    "test:e2e:courses": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/courses.e2e-spec.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.3",
