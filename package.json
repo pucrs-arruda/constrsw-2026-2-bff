@@ -1,7 +1,7 @@
 {
   "name": "constrsw-bff",
   "version": "1.0.0",
-  "description": "BFF do Closed CRAS — composição e proxy entre o frontend Angular e os nove contextos",
+  "description": "BFF do Closed CRAS \u00e2\u20ac\u201d composi\u00c3\u00a7\u00c3\u00a3o e proxy entre o frontend Angular e os nove contextos",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -14,7 +14,9 @@
     "start:prod": "node dist/main",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:watch": "npm test -- --watch",
-    "test:cov": "npm test -- --coverage"
+    "test:cov": "npm test -- --coverage",
+    "test:contract": "node scripts/validate-contract.cjs",
+    "test:e2e": "node scripts/e2e.cjs"
   },
   "dependencies": {
     "@nestjs/common": "12.1.3",
@@ -23,7 +25,9 @@
     "@nestjs/platform-express": "12.1.3",
     "express": "5.2.1",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "12.0.13",
@@ -40,13 +44,19 @@
     "typescript": "6.0.3"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

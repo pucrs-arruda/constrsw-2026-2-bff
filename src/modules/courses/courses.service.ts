@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DownstreamRequest, DownstreamResponse, DownstreamService, DownstreamUnavailableError } from '../../common/http/downstream.service';
 import { currentSemester } from './current-semester';
+import { validClass, validCourse } from './composition-contract';
 
 export const COURSES_DOWNSTREAM = 'COURSES_DOWNSTREAM';
 export const CLASSES_DOWNSTREAM = 'COURSES_CLASSES_DOWNSTREAM';
@@ -37,7 +38,7 @@ export class CoursesService {
 	private async compose(response: DownstreamResponse, request: DownstreamRequest, mode: 'collection' | 'item'): Promise<DownstreamResponse> {
 		const payload: unknown = JSON.parse(response.body);
 		const courses: unknown[] = mode === 'collection' && Array.isArray(payload) ? payload : mode === 'item' ? [payload] : [];
-		if ((mode === 'collection' && !Array.isArray(payload)) || !courses.every(course => record(course) && typeof course.id === 'string')) throw new Error('Invalid Courses payload');
+		if ((mode === 'collection' && !Array.isArray(payload)) || !courses.every(course => validCourse(course))) throw new Error('Invalid Courses payload');
 		const { year, semester } = currentSemester(this.clock());
 		const grouped = new Map<string, Resource[]>();
 		if (courses.length > 0) {
@@ -48,10 +49,10 @@ export class CoursesService {
 			const classes: unknown = JSON.parse(result.body);
 			if (!Array.isArray(classes)) throw new Error('Invalid Classes payload');
 			for (const item of classes) {
-				if (!record(item) || typeof item.id !== 'string' || typeof item.courseId !== 'string' || typeof item.enabled !== 'boolean' || !Number.isInteger(item.year) || ![1, 2].includes(item.semester as number)) throw new Error('Invalid Class');
+				if (!record(item) || !validClass(item)) throw new Error('Invalid Class');
 				if (!item.enabled || item.year !== year || item.semester !== semester) continue;
-				const linked = grouped.get(item.courseId) ?? [];
-				linked.push(item); grouped.set(item.courseId, linked);
+				const linked = grouped.get(String(item.courseId)) ?? [];
+				linked.push(item); grouped.set(String(item.courseId), linked);
 			}
 		}
 		const views = (courses as Resource[]).map(course => ({ ...course, classes: grouped.get(String(course.id)) ?? [] }));

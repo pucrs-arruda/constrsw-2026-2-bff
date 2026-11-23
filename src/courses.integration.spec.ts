@@ -61,7 +61,7 @@ describe('Courses BFF over real HTTP boundaries', () => {
 	});
 	it('uses one current-semester query and filters disabled, unrelated and old Classes', async () => {
 		courseReply.body = JSON.stringify([course, { ...course, id: '66666666-6666-4666-8666-666666666666' }]);
-		classesReply.body = JSON.stringify([currentClass, { ...currentClass, enabled: false }, { ...currentClass, year: 2025 }, { ...currentClass, semester: 1 }, { ...currentClass, courseId: 'unrelated' }]);
+		classesReply.body = JSON.stringify([currentClass, { ...currentClass, enabled: false }, { ...currentClass, year: 2025 }, { ...currentClass, semester: 1 }, { ...currentClass, courseId: '77777777-7777-4777-8777-777777777777' }]);
 		const response = await request(app.getHttpServer()).get('/api/v1/courses?year=1900&semester=1').set('Authorization', 'Bearer same-token').expect(200);
 		expect(response.body[0]).toEqual({ ...course, classes: [currentClass] });
 		expect(response.body[1].classes).toEqual([]);
@@ -81,6 +81,16 @@ describe('Courses BFF over real HTTP boundaries', () => {
 		courseReply.body = '[]';
 		const response = await request(app.getHttpServer()).get('/api/v1/courses').expect(200);
 		expect(response.body).toEqual([]); expect(classes.seen).toHaveLength(0);
+	});
+	it('rejects a success payload that violates the Courses contract', async () => {
+		courseReply.body = JSON.stringify([{ id: COURSE_ID }]);
+		await request(app.getHttpServer()).get('/api/v1/courses').expect(503);
+		expect(classes.seen).toHaveLength(0);
+	});
+	it('rejects Classes records missing required public fields', async () => {
+		const { averageRating, ...incomplete } = currentClass;
+		classesReply.body = JSON.stringify([incomplete]);
+		await request(app.getHttpServer()).get('/api/v1/courses').expect(503);
 	});
 	it.each([400, 401, 403, 404, 409, 503])('preserves Courses refusal %s without consulting Classes', async status => {
 		const failure = { error_code: `CO-${status}`, error_description: 'Domain refusal', error_source: 'CoursesAPI', error_stack: [] };

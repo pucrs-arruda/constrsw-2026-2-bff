@@ -1,0 +1,10 @@
+# Apply from the BASE checkout. Existing domain services can also run separately.
+# docker compose -f docker-compose.yml -f backend/bff/compose.courses.yaml up -d --build bff
+services:
+  bff:
+    environment:
+      BFF_ORIGIN: ${BFF_ORIGIN:-http://localhost:4200}
+      SESSION_COOKIE_NAME: ${OAUTH_SESSION_COOKIE_NAME:-closed_cras_session}
+    depends_on: !override
+      oauth: {condition: service_healthy}
+      courses: {condition: service_healthy}
