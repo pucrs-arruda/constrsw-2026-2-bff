@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { HealthController } from './common/health/health.controller';
 import { RoomsModule } from './modules/rooms/rooms.module';
+import { StudentsModule } from './modules/students/students.module';
 
 /**
  * Raiz da aplicação.
@@ -16,6 +17,7 @@ import { RoomsModule } from './modules/rooms/rooms.module';
 	imports: [
 		ConfigModule.forRoot({ isGlobal: true }),
 		RoomsModule,
+		StudentsModule,
 	],
 	controllers: [HealthController],
 })

@@ -6,8 +6,8 @@ BFF do Closed CRAS: a única porta que o frontend Angular enxerga. Os nove conte
 o browser (AD-6), então tudo que a UI precisa passa por aqui — como *proxy* (pass-through do CRUD
 de um contexto) ou como *read-model de composição* (leitura que junta contextos).
 
-> **Estado:** scaffold + módulo `rooms` (Grupo 08). Os outros oito contextos, o `modules/auth` e o
-> `modules/ocupacao` ainda não existem. Veja [Quem faz o quê](#quem-faz-o-quê).
+> **Estado:** scaffold + módulos `rooms` (Grupo 08) e `students` (Grupo 04). Os outros contextos,
+> o `modules/auth` e o `modules/ocupacao` ainda não existem. Veja [Quem faz o quê](#quem-faz-o-quê).
 
 ## Rodar
 
@@ -27,6 +27,7 @@ src/
   main.ts                      # bootstrap; CORS só aqui (AD-6)
   app.module.ts                # ponto de encontro dos nove módulos
   common/
+    academic/current-semester.ts # semestre em curso (fuso America/Sao_Paulo) da composição T3
     auth/bearer-token.ts       # encaixe com o modules/auth que ainda não existe
     health/                    # GET /health anônimo (AD-7)
     http/
@@ -34,7 +35,33 @@ src/
       downstream.service.ts    # timeout + retry idempotente + breaker
   modules/
     rooms/                     # Grupo 08
+    students/                  # Grupo 04
 ```
+
+## Módulo `students` (Grupo 04)
+
+Paths de `docs/open-api/bff.yaml` do repositório base, sob `/api/v1/students`:
+
+| Rota | Tipo |
+|---|---|
+| `GET /api/v1/students` | composição: cada estudante + `classes` |
+| `GET /api/v1/students/{id}` | composição: estudante + `classes` |
+| `POST`, `PUT`, `PATCH`, `DELETE` de `/api/v1/students[/{id}]` | proxy |
+| `/api/v1/students/{id}/enrollments[/{enrollmentId}]` (todos os verbos) | proxy |
+
+`classes` são as classes do **semestre em curso** em que o estudante está matriculado
+(`studentIds` contém o id). Semestre em curso no fuso America/Sao_Paulo: `year` = ano atual,
+`semester` = 1 antes de agosto e 2 de agosto em diante. O BFF faz **uma** chamada
+`GET /api/v1/classes?year=&semester=` por requisição (em paralelo com o students) e filtra
+`studentIds` em memória, porque o classes não filtra por estudante.
+
+- Erro do students (400, 401, 403, 404…) sobe intacto.
+- students 200 e classes fora do ar, com status não 2xx ou corpo que não é lista → `503`
+  `application/problem+json` com `code` `BFF-DEPENDENCY`; o estudante não é devolvido pela metade.
+- students fora do ar → `503` com `code` `BFF-DOWNSTREAM-UNAVAILABLE`, como nos demais proxies.
+
+Variáveis: `STUDENTS_BASE_URL` (default `http://students:8080`) e `CLASSES_BASE_URL` (default
+`http://classes:8107`), mais os `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*` compartilhados.
 
 ## Quem faz o quê
 
@@ -44,6 +71,7 @@ domínio **alheio** (FR-28). Então aqui o Grupo 08 é dono de `modules/rooms/` 
 | Pasta | Dono |
 |---|---|
 | `modules/rooms/` | Grupo 08 |
+| `modules/students/` | Grupo 04 |
 | `modules/classes/`, `modules/lessons/`, … | um grupo cada |
 | `modules/ocupacao/` | FR-29, dono único a definir |
 | `modules/auth/` | **sem dono** — ver abaixo |
