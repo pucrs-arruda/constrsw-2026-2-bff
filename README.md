@@ -17,6 +17,29 @@ npm test          # unit + contrato
 npm run start:dev # porta 3001 por padrão
 ```
 
+### Teste fim a fim
+
+`npm run test:e2e` roda `test/e2e/*.e2e-spec.ts` contra a stack **real** do compose do base (BFF,
+contextos e Keycloak no ar), sem dublês. Não roda no `npm test`.
+
+```bash
+# na raiz do base: o mínimo para o e2e de students
+docker compose up -d --build postgresql keycloak students classes
+docker compose up -d --build --no-deps bff
+# em backend/bff
+npm run test:e2e
+E2E_DOCKER=1 npm run test:e2e   # inclui o 503 BFF-DEPENDENCY parando o container classes
+```
+
+- `test/e2e/support/e2e-env.ts` é compartilhado: URLs (portas externas do `.env` do base), token
+  do Keycloak (`admin@pucrs.br` por padrão) e cliente HTTP. O que não estiver no ambiente é lido do
+  `.env` do base quando o BFF está em `backend/bff`. Sobrescreva com `E2E_BFF_URL`,
+  `E2E_KEYCLOAK_URL`, `E2E_<CONTEXTO>_URL`, `E2E_USERNAME`, `E2E_PASSWORD`, `E2E_BASE_ENV_FILE`.
+- **Para os outros grupos:** copie `test/e2e/students.e2e-spec.ts` como
+  `test/e2e/<contexto>.e2e-spec.ts`. O roteiro é: criar dados pelo BFF (proxy) e direto no contexto
+  da composição, conferir que o GET do BFF traz o corpo do dono do dado mais o campo composto, e
+  limpar o que criou.
+
 Dentro do compose do repositório base, o serviço sobe como `api` e é publicado em
 `localhost:8180`. Fora dele, copie `.env.example` para `.env`.
 
@@ -36,6 +59,11 @@ src/
   modules/
     rooms/                     # Grupo 08
     students/                  # Grupo 04
+test/
+  jest-e2e.json                # config do npm run test:e2e
+  e2e/
+    support/e2e-env.ts         # compartilhado: URLs, token, HTTP
+    students.e2e-spec.ts       # Grupo 04 (modelo para <contexto>.e2e-spec.ts)
 ```
 
 ## Módulo `students` (Grupo 04)
