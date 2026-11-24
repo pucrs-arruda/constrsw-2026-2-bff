@@ -116,15 +116,31 @@ E2E: `npm run test:e2e -- reservations` (stack do base no ar, com a massa padrã
 Cobre 401, identidade, criar (corpo igual ao do backend direto), query `{like}`, ocorrência, 403 do
 domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
 
+## Módulo `classes` (Grupo 01)
+
+**Proxy puro** nos paths de `docs/open-api/bff.yaml` e `docs/open-api/grupo01-classes-api.yaml`:
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/classes` | GET, POST |
+| `/api/v1/classes/import` | POST |
+| `/api/v1/classes/{classId}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/classes/{classId}/reviews` | GET, POST |
+| `/api/v1/classes/{classId}/reviews/{reviewId}` | GET, PUT, PATCH, DELETE |
+
+- Preserva query string crua (operadores `{neq}`, `{gt}`, `{gteq}`, `{lt}`, `{lteq}`, `{like}`), corpo (incluindo array JSON no `/import` e aliases em português de reviews), status, `Content-Type` e `Location`.
+- Usa `CLASSES_BASE_URL` (default `http://classes:8107`) e os parâmetros compartilhados `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*`; indisponibilidade retorna `503` `application/problem+json` com `code: "BFF-DOWNSTREAM-UNAVAILABLE"`.
+
 ## Quem faz o quê
 
 | Pasta | Dono |
 |---|---|
+| `src/modules/classes/` | Grupo 01 |
 | `src/modules/reservations/` | Grupo 03 |
 | `src/modules/rooms/` | Grupo 08 |
 | `src/modules/students/` | Grupo 04 |
 | `src/modules/courses/` | Grupo 05 |
-| `src/modules/classes/`, `src/modules/lessons/`, … | um grupo cada |
+| `src/modules/lessons/`, `src/modules/professors/`, … | um grupo cada |
 | `src/modules/ocupacao/` | FR-29, dono único a definir |
 | `common/` | compartilhado |
 
