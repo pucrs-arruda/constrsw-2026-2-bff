@@ -1,42 +1,64 @@
-import { All, Controller, Req, Res } from '@nestjs/common';
+import {
+	All,
+	BadRequestException,
+	Controller,
+	Get,
+	Req,
+	Res,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
-
 import { bearerTokenOf } from '../../common/auth/bearer-token';
-import { RoomsService } from './rooms.service';
+import { RoomsCompose, RoomsService } from './rooms.service';
 
-/**
- * Rotas de `rooms` publicadas para o frontend.
- *
- * Pelo AD-6 o proxy espelha os paths do contexto sob `/v1/<contexto>/...`, então as quatro rotas
- * do contrato do `rooms` aparecem aqui como:
- *
- * - `/v1/rooms`                                             — GET, POST
- * - `/v1/rooms/:id`                                         — GET, PUT, PATCH, DELETE
- * - `/v1/rooms/:id/accessibility-features`                  — GET, POST
- * - `/v1/rooms/:id/accessibility-features/:featureId`       — GET, PUT, PATCH, DELETE
- *
- * Um `@All` por rota, em vez de um método por verbo: o proxy não decide nada por verbo — quem
- * recusa `POST` de quem não pode é o gateway do domínio, e inventar aqui uma lista de métodos
- * permitidos seria a "regra negocial no proxy" que o AD-6 proíbe. Método não suportado pelo
- * contexto volta como o próprio contexto responde (405/404), sem o BFF opinar.
- */
-@Controller('v1/rooms')
+const invalidRequest = (description: string) =>
+	new BadRequestException({
+		type: 'urn:closed-cras:bff:bad-request',
+		title: 'Requisição inválida',
+		status: 400,
+		detail: description,
+		code: 'BFF-BAD-REQUEST',
+	});
+
+function segment(value: unknown): string {
+	const identifier = String(value);
+	if (!identifier || identifier === '.' || identifier === '..') {
+		throw invalidRequest('Dot segments are not valid resource identifiers.');
+	}
+	return encodeURIComponent(identifier);
+}
+
+@Controller('api/v1/rooms')
 export class RoomsController {
 	constructor(private readonly rooms: RoomsService) {}
 
-	@All()
+	@Get()
 	collection(@Req() request: Request, @Res() response: Response): Promise<void> {
+		return this.proxy(request, response, '', 'collection');
+	}
+
+	@All()
+	collectionProxy(@Req() request: Request, @Res() response: Response): Promise<void> {
 		return this.proxy(request, response, '');
 	}
 
-	@All(':id')
+	@Get(':id')
 	item(@Req() request: Request, @Res() response: Response): Promise<void> {
-		return this.proxy(request, response, `/${encodeURIComponent(String(request.params.id))}`);
+		const id = segment(request.params.id);
+		return this.proxy(request, response, `/${id}`, 'item', id);
+	}
+
+	@All(':id')
+	itemProxy(@Req() request: Request, @Res() response: Response): Promise<void> {
+		return this.proxy(request, response, `/${segment(request.params.id)}`);
 	}
 
 	@All(':id/accessibility-features')
 	features(@Req() request: Request, @Res() response: Response): Promise<void> {
-		return this.proxy(request, response, `/${encodeURIComponent(String(request.params.id))}/accessibility-features`);
+		return this.proxy(
+			request,
+			response,
+			`/${segment(request.params.id)}/accessibility-features`,
+		);
 	}
 
 	@All(':id/accessibility-features/:featureId')
@@ -44,38 +66,77 @@ export class RoomsController {
 		return this.proxy(
 			request,
 			response,
-			`/${encodeURIComponent(String(request.params.id))}/accessibility-features/${encodeURIComponent(String(request.params.featureId))}`,
+			`/${segment(request.params.id)}/accessibility-features/${segment(request.params.featureId)}`,
 		);
 	}
 
-	private async proxy(request: Request, response: Response, suffix: string): Promise<void> {
-		const query = request.originalUrl.includes('?')
-			? request.originalUrl.slice(request.originalUrl.indexOf('?'))
-			: '';
+	private async proxy(
+		request: Request,
+		response: Response,
+		suffix: string,
+		compose?: RoomsCompose,
+		roomId?: string,
+	): Promise<void> {
+		let body: Buffer | string | undefined;
 
-		const result = await this.rooms.forward({
-			method: request.method,
-			suffix: `${suffix}${query}`,
-			body: hasBody(request) ? JSON.stringify(request.body) : undefined,
-			contentType: request.headers['content-type'],
-			bearerToken: bearerTokenOf(request),
-		});
+		if (request.headers['content-length'] === '0') {
+			body = undefined;
+		} else if (Buffer.isBuffer(request.body)) {
+			body = request.body.length === 0 ? undefined : request.body;
+		} else if (request.body !== undefined && request.body !== null) {
+			body = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+		}
 
-		if (result.contentType) {
-			response.setHeader('content-type', result.contentType);
+		if (['GET', 'HEAD'].includes(request.method)) {
+			const hasBody =
+				(Buffer.isBuffer(body) && body.length > 0) ||
+				(typeof body === 'string' && body.length > 0);
+			if (hasBody) {
+				throw invalidRequest('GET and HEAD do not accept a request body.');
+			}
+			body = undefined;
 		}
-		for (const [name, value] of Object.entries(result.headers ?? {})) response.setHeader(name, value);
-		response.status(result.status);
-		// 204 não tem corpo; mandar string vazia evita content-length indevido.
-		if (result.body) {
-			response.send(result.body);
-		}
-		else {
-			response.end();
+
+		const abort = new AbortController();
+		const disconnected = () => {
+			if (!response.writableEnded) abort.abort();
+		};
+		response.on('close', disconnected);
+
+		try {
+			const queryAt = request.originalUrl.indexOf('?');
+			const query = queryAt < 0 ? '' : request.originalUrl.slice(queryAt);
+
+			const result = await this.rooms.forward(
+				{
+					method: request.method,
+					suffix,
+					query,
+					body,
+					contentType: request.headers['content-type'],
+					bearerToken: bearerTokenOf(request),
+					signal: abort.signal,
+					roomId,
+				},
+				request.method === 'GET' ? compose : undefined,
+			);
+
+			if (response.destroyed) return;
+
+			if (result.contentType) {
+				response.setHeader('content-type', result.contentType);
+			}
+			for (const [name, value] of Object.entries(result.headers ?? {})) {
+				response.setHeader(name, value);
+			}
+			response.status(result.status);
+			if (result.body) {
+				response.send(result.body);
+			} else {
+				response.end();
+			}
+		} finally {
+			response.off('close', disconnected);
 		}
 	}
-}
-
-function hasBody(request: Request): boolean {
-	return request.body !== undefined && request.headers['content-length'] !== '0';
 }

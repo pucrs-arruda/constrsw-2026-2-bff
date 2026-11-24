@@ -83,6 +83,24 @@ estudante, usando uma consulta a Classes por requisição. Erros do domínio sob
 intactos; quando Students responde 200, uma falha ou resposta inválida de Classes
 resulta em 503 sem devolver o estudante pela metade.
 
+## Módulo `rooms` (Grupo 08)
+
+Sob `/api/v1/rooms`, as operações seguem o contrato `docs/open-api/bff.yaml`:
+
+| Rota | Métodos | Comportamento |
+|---|---|---|
+| `/api/v1/rooms` | GET | Composição T3: lista salas com `classes` do semestre em curso |
+| `/api/v1/rooms` | POST | Proxy puro para o serviço rooms (`Location`, status e erros intactos) |
+| `/api/v1/rooms/{id}` | GET | Composição T3: recupera sala com `classes` do semestre em curso |
+| `/api/v1/rooms/{id}` | PUT, PATCH, DELETE | Proxy puro para o serviço rooms |
+| `/api/v1/rooms/{id}/accessibility-features` | GET, POST | Proxy puro para características de acessibilidade |
+| `/api/v1/rooms/{id}/accessibility-features/{featureId}` | GET, PUT, PATCH, DELETE | Proxy puro para característica por id |
+
+- **Composição de leitura (T3):** `GET /api/v1/rooms` e `GET /api/v1/rooms/{id}` compõem `classes` do semestre em curso (calculado no fuso `America/Sao_Paulo`: `year` civil; `semester` = 1 de janeiro a julho e 2 de agosto a dezembro). As turmas entram na composição quando `roomId` for igual ao id da sala. Coleção vazia do rooms não chama classes e retorna `[]`. Falha ou indisponibilidade do serviço classes retorna 503 `application/problem+json` com `code: 'BFF-DEPENDENCY'` — a sala nunca é retornada sem turmas por falha na dependência.
+- **Decisão D5 (filtro de classes por papel):** O BFF repassa o token do próprio usuário ao rooms e ao classes (mesmo padrão de students e courses). Como consequência, o serviço classes filtra as turmas com base no papel do usuário logado: coordinator e administrator veem todas as turmas sediadas na sala; professor vê apenas as turmas que conduz; student vê apenas as turmas que cursa.
+- **Resiliência e proxy:** Timeout, retry (apenas métodos idempotentes `GET` e `HEAD` para evitar repetição indevida de escritas) e circuit breakers independentes para rooms e classes. Query strings cruas (`{gteq}`, `%25` do like) e corpos brutos são preservados. Headers `X-Total-Count` e `Location` são repassados; nos GETs compostos, `etag` e `last-modified` são removidos e `cache-control: no-store` é definido.
+
+
 ## Módulo `reservations` (Grupo 03)
 
 **Proxy puro** (o `bff.yaml` não pede composição para reservations), com os mesmos paths do contrato
@@ -218,7 +236,7 @@ Cada grupo acrescenta `src/modules/<domínio>/` e registra seu módulo em
 compatibilidade com os módulos existentes. `app.module.ts`, `package.json` e
 lockfile são pontos compartilhados de integração.
 
-Rooms mantém suas rotas legadas `/v1/rooms` e testes. Students e Reservations
+Rooms publica `/api/v1/rooms` com composição T3 de turmas e testes. Students e Reservations
 mantêm E2Es independentes. Courses reutiliza o runner compartilhado para testar
 com Classes real.
 
