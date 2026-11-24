@@ -47,3 +47,18 @@ is provisional verification, with official-runner integration still pending
 that external artifact. No PR or push is authorized by this instruction.
 
 Publication: user subsequently authorized pushing grupo05 to the BFF remote. PR remains held until the professor publishes the official E2E runner and the group adapts its tests. No base push.
+
+
+## Shared E2E runner adaptation — 2026-11-23
+
+- Pulled base main locally, preserving the existing OAuth/PostgreSQL fixes and .env; no base push. Courses main was already current.
+- Merged BFF main 35f31f8 (Students and shared E2E) in 601a9fa. Resolved README/package conflicts; preserved both modules and direct validation dependencies. Initial merged baseline: 113 local tests passed.
+- Added test/e2e/courses.e2e-spec.ts, using the upstream Jest configuration and unchanged HTTP/settings/semester helpers. The courses-only npm alias avoids starting/running other groups' domains.
+- Removed the provisional scripts/e2e.cjs and its obsolete fixture-teardown unit test. Cookie and metrics coverage remain in existing local HTTP tests.
+- User explicitly authorized starting Classes and its necessary infrastructure for live verification. No other group's business service was started. Its configured role/database were prepared idempotently, preserving existing data.
+- Runtime diagnosis found an old Courses image configured for an absent courses-db and an old professorId contract. Privately backed up the shared Courses database and rebuilt only Courses from current source; its health became healthy.
+- Initial E2E observed 401 using the template's direct external Keycloak token. Confirmed that its issuer differs from the token obtained by OAuth login; OAuth validated its own token with 200, while direct Classes also accepted it. Courses now logs in through real OAuth, matching its authorization boundary; shared helpers and Students tests remain unchanged.
+- Real Classes tests compare item and collection composition with both domains; exclude other-course, past-year, other-semester and logically deleted records; cover all 19 proxy operations and 400/401/404/409; clean only this run's data.
+- Verification: 112/112 local tests; 352 offline references/19 operations; Nest build; E2E TypeScript check; 28 normal live E2E scenarios plus the optional real-container failure scenario, all 29 passed. Classes was restored and healthy after the outage check.
+- Fresh read-only review found no Critical/Important issue. Corrected OAuth README details and stale fixture evidence identified by review.
+- User subsequently authorized opening the BFF PR after completion. Publish only bff/grupo05 and create a PR targeting BFF main; no base publication.

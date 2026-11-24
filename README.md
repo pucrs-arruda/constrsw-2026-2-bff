@@ -1,7 +1,7 @@
 # BFF — contribuição do Grupo 05
 
-BFF em Node.js 24 (>=24.15), NestJS 12 e TypeScript. A branch `grupo05` integra
-os commits do scaffold/Rooms do Grupo 08 e acrescenta Courses.
+BFF em Node.js 24 (>=24.15), NestJS 12 e TypeScript. A branch `bff/grupo05` integra
+os commits de Rooms do Grupo 08 e Students do Grupo 04, e acrescenta Courses.
 
 ## Funcionalidade
 
@@ -87,30 +87,54 @@ cookie do OAuth, ajuste também o BFF. Não publique o `.env`.
 
 ## Verificação E2E
 
-O runner testa o Nest real com OAuth, Keycloak e Courses reais, e uma fixture
-HTTP explícita de Classes. Exercita as 19 operações, login por cookie, composição,
-falhas, métricas e limpeza apenas da disciplina criada pela execução.
+O E2E de Courses agora segue o modelo integrado na main: arquivo
+`test/e2e/courses.e2e-spec.ts`, configuração `test/jest-e2e.json` e helpers de
+`test/e2e/support/e2e-env.ts`. O script provisório com Classes simulada foi
+substituído. O teste fala com o BFF publicado, Courses e Classes reais, usando
+o token do Keycloak obtido pelo fluxo real de login do OAuth.
 
-Em ambiente com conta de teste já autorizada, configure `BFF_E2E_OAUTH_URL`,
-`BFF_E2E_COURSES_URL`, `BFF_E2E_USERNAME` e `BFF_E2E_PASSWORD`, então execute:
-
-```sh
-npm run build
-npm run test:e2e
-```
-
-Outra opção é preparar a stack descartável pelo runner existente de Courses:
+Com a base configurada, inicie os serviços necessários da raiz:
 
 ```sh
-python backend/courses/scripts/base_e2e.py --keep
+docker compose up -d postgresql keycloak oauth courses classes
+docker compose -f docker-compose.yml -f backend/bff/compose.courses.yaml up -d --no-deps --build bff
 ```
 
-Esse comando é executado da raiz da base e informa o caminho do receipt em
-`backend/courses/target/`. No BFF, configure `BFF_E2E_RECEIPT` com esse caminho e
-execute `npm run test:e2e`. O receipt contém credenciais temporárias: mantenha-o
-ignorado. Ao terminar, use o runner de Courses com `--cleanup <receipt>` para
-remover somente aquele projeto e seus volumes. O runner BFF fecha a própria
-aplicação/fixture e exclui logicamente apenas a disciplina de teste.
+Em `backend/bff`, execute apenas nosso domínio:
+
+```sh
+npm run test:e2e:courses
+```
+
+`npm run test:e2e -- courses` equivale ao comando acima. `npm run test:e2e` sem
+filtro inclui também os E2Es dos outros grupos e exige os respectivos serviços.
+Os testes unitários/HTTP locais continuam separados em `npm test`.
+
+Courses reutiliza configuração e HTTP compartilhados, e obtém o token em
+`POST /login` do OAuth. Isso exercita a mesma autenticação da aplicação e evita
+que os hosts externo/interno do Keycloak gerem emissores diferentes. Os helpers
+do runner e o E2E de Students permanecem intactos.
+
+O suporte compartilhado lê o .env da base sem imprimir seus valores. Para um
+ambiente diferente, configure `E2E_BFF_URL`, `E2E_COURSES_URL`,
+`E2E_CLASSES_URL`, `E2E_OAUTH_URL`, `E2E_KEYCLOAK_URL`, `E2E_USERNAME`, `E2E_PASSWORD` e, se
+necessário, `E2E_BASE_ENV_FILE`. Courses usa as credenciais do usuário no OAuth;
+os E2Es dos outros grupos que chamam o helper `accessToken` diretamente usam
+também `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` e `KEYCLOAK_REALM`.
+
+O roteiro cobre as 19 operações de Courses; compara leituras compostas com
+Courses/Classes diretamente; exclui turmas de outro curso, ano, semestre ou
+removidas; verifica classes vazias, 400/401/404/409 e limpeza dos dados criados.
+Cada execução usa códigos únicos e apaga apenas seus próprios registros.
+
+Com `E2E_DOCKER=1`, inclui o cenário CO-503 parando e restaurando o container de
+Classes. `E2E_CLASSES_CONTAINER` permite outro nome de container. Esse cenário
+exige uma stack local que possa ser interrompida. Por padrão, fica desativado.
+
+Classes aceita IDs sintéticos de sala/professor na configuração padrão da base,
+como no modelo de Students. Se a implantação habilitar validação externa dessas
+referências, forneça `E2E_ROOM_ID` e `E2E_PROFESSOR_ID` válidos. O teste não sobe
+Rooms, Professors ou outros microsserviços de grupos alheios.
 
 ## Contrato, observabilidade e integração dos grupos
 
@@ -133,8 +157,8 @@ PRs são AppModule, package.json e lockfile. O merge preserva o histórico do Gr
 
 Rooms mantém suas rotas legadas `/v1/rooms` e testes. Seu dono deve reconciliar
 esse prefixo e a composição de leitura com o contrato atual da base. Os demais
-módulos da turma não fazem parte desta contribuição. Os testes com fixture não
-comprovam compatibilidade com um deployment real de Classes.
+módulos da turma são integrados a partir da main; Students mantém seu E2E
+separado. Courses reutiliza o runner compartilhado para testar Classes real.
 
 As versões NestJS/TypeScript originais foram mantidas: instalação e build
 passaram. O ValidationPipe global sem DTOs foi removido, corrigindo a falha de
@@ -144,19 +168,18 @@ O audit do lockfile herdado reporta avisos, incluindo dois de severidade alta
 na cadeia platform-express/multer. Este módulo não usa upload multipart;
 uma atualização compartilhada dessa cadeia deve ser coordenada com a turma.
 
-Esta contribuição permanece na branch `grupo05`. A base não foi publicada.
+Esta contribuição permanece na branch `bff/grupo05`. A base não foi publicada.
 
 GET/HEAD com corpo vazio são encaminhados sem corpo; corpos não vazios nesses
 métodos recebem CO-400. Identificadores `.` e `..` também recebem CO-400 antes
 da normalização de URL. Cancelamentos do navegador não contam como falhas dos
 serviços e liberam uma tentativa de recuperação cancelada.
 
-Validação em 2026-11-23: 95 testes passaram; o contrato offline verificou 352
-referências e 19 operações. O E2E com Courses/OAuth/Keycloak reais verificou 23
-chamadas HTTP e limpou sua disciplina. Classes foi uma fixture explícita. A
-imagem Docker compilou e respondeu health e métricas como usuário não-root.
+Validação em 2026-11-23: 112 testes locais passaram, incluindo Students e Rooms;
+o contrato offline verificou 352 referências e 19 operações. O E2E novo passou
+29 cenários com BFF, Courses, Classes, OAuth/Keycloak e PostgreSQL reais, incluindo
+CO-503 com parada e restauração de Classes. A limpeza foi executada e Classes
+voltou saudável. Build NestJS e checagem de tipos do E2E também passaram.
 
-O professor publicará um runner E2E para a turma. O script local acima é uma
-verificação provisória: os testes de Courses devem ser adaptados ao runner
-oficial quando estiver disponível. A abertura do PR aguarda essa integração,
-conforme solicitado pelo grupo.
+O runner compartilhado já foi integrado. A contribuição segue em
+`bff/grupo05`; a base não deve receber push por esta contribuição.
