@@ -16,6 +16,8 @@ export interface DownstreamResponse {
 	readonly body: string;
 	readonly contentType: string | null;
 	readonly headers?: Readonly<Record<string, string>>;
+	/** `Location` do downstream (ex.: 201 Created), para o proxy repassar. Opcional: quem não usa ignora. */
+	readonly location?: string | null;
 }
 
 export interface DownstreamRequest {
@@ -86,7 +88,9 @@ export class DownstreamService {
 	}
 
 	private async callOnce(request: DownstreamRequest): Promise<DownstreamResponse> {
-		const headers: Record<string, string> = { accept: 'application/json' };
+		// problem+json também: erros RFC 9457 e operações sem corpo de sucesso (DELETE 204 do
+		// reservations declara só problem+json) dariam 406 com um Accept só de application/json.
+		const headers: Record<string, string> = { accept: 'application/json, application/problem+json' };
 		if (request.bearerToken) {
 			headers.authorization = `Bearer ${request.bearerToken}`;
 		}
@@ -112,6 +116,7 @@ export class DownstreamService {
 			body: await response.text(),
 			contentType: response.headers.get('content-type'),
 			headers: responseHeaders,
+			location: response.headers.get('location'),
 		};
 	}
 

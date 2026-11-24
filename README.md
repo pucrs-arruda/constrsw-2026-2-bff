@@ -1,7 +1,7 @@
 # BFF — contribuição do Grupo 05
 
 BFF em Node.js 24 (>=24.15), NestJS 12 e TypeScript. A branch `bff/grupo05` integra
-os commits de Rooms do Grupo 08 e Students do Grupo 04, e acrescenta Courses.
+Reservations do Grupo 03, Rooms do Grupo 08 e Students do Grupo 04, e acrescenta Courses.
 
 ## Funcionalidade
 
@@ -66,6 +66,63 @@ informada e diferente de `BFF_ORIGIN` são recusadas.
 Não há novos endpoints de login no BFF. A gestão completa de autenticação
 compartilhada continua sob coordenação da turma. O hook `request.bearerToken`
 foi preservado para um futuro guard.
+
+## Módulo `students` (Grupo 04)
+
+Sob `/api/v1/students`, GET da coleção e GET de um estudante acrescentam
+`classes`; POST, PUT, PATCH, DELETE e as rotas de matrículas são proxy. A
+composição retorna as classes do semestre atual em que `studentIds` contém o
+estudante, usando uma consulta a Classes por requisição. Erros do domínio sobem
+intactos; quando Students responde 200, uma falha ou resposta inválida de Classes
+resulta em 503 sem devolver o estudante pela metade.
+
+## Módulo `reservations` (Grupo 03)
+
+**Proxy puro** (o `bff.yaml` não pede composição para reservations), com os mesmos paths do contrato
+do contexto (`docs/open-api/grupo03-reservations-api.yaml` do base):
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/reservations` | GET, POST |
+| `/api/v1/reservations/ocupacao` | GET |
+| `/api/v1/reservations/{id}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/reservations/{id}/details` | GET, POST |
+| `/api/v1/reservations/{id}/details/{detailId}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/identidade/me` | GET |
+
+- **JWT validado no Keycloak** antes de chamar o backend: assinatura pelo JWKS do realm
+  (`${JWT_ISSUER}/protocol/openid-connect/certs`, chaves em cache, nova busca se o `kid` mudar),
+  `iss` no realm de `JWT_ISSUER` (qualquer host: o token pedido direto no Keycloak por
+  `localhost:8081` vem com outro host no `iss`, e a assinatura já prova a origem), `aud` contém `JWT_AUDIENCE`, não expirado. Sem token ou inválido → `401`
+  `problem+json`, sem chamar o backend. Keycloak fora do ar → `503`. Só `node:crypto`, sem lib nova.
+- O mesmo `Authorization: Bearer` segue para o backend. Query vai como chegou (`{gteq}`, `%25`…);
+  o PATCH (`application/merge-patch+json`) chega cru.
+- Resposta do backend sobe intacta: status, corpo, `Content-Type` e `Location`.
+- Backend fora do ar, timeout ou circuito aberto → `503` `problem+json` no formato do contrato do
+  reservations (sem `code`: lá `code` é só `FR-n`).
+
+Variáveis (passadas pelo compose da base): `RESERVATIONS_BASE_URL`, `JWT_ISSUER`,
+`JWT_AUDIENCE`, mais os `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*` compartilhados.
+URL ou número inválido impede a subida com mensagem que cita a variável.
+
+E2E: `npm run test:e2e -- reservations` (stack do base no ar, com a massa padrão do reservations).
+Cobre 401, identidade, criar (corpo igual ao do backend direto), query `{like}`, ocorrência, 403 do
+domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
+
+## Quem faz o quê
+
+| Pasta | Dono |
+|---|---|
+| `src/modules/reservations/` | Grupo 03 |
+| `src/modules/rooms/` | Grupo 08 |
+| `src/modules/students/` | Grupo 04 |
+| `src/modules/courses/` | Grupo 05 |
+| `src/modules/classes/`, `src/modules/lessons/`, … | um grupo cada |
+| `src/modules/ocupacao/` | FR-29, dono único a definir |
+| `common/` | compartilhado |
+
+Cada grupo registra seu módulo em `app.module.ts`, em ordem alfabética. Mudanças
+em `common/` devem preservar a compatibilidade com os módulos já integrados.
 
 ## Docker Compose da base
 
@@ -150,15 +207,13 @@ do BFF para exibir essas métricas no Grafana; disponibilizar o endpoint sozinho
 não configura um dashboard. Logs incluem rota parametrizada, status e duração.
 
 Cada grupo acrescenta `src/modules/<domínio>/` e registra seu módulo em
-`app.module.ts`, em ordem alfabética. Mudanças em `common/` pedem regressões e
-compatibilidade com os módulos existentes. Os pontos prováveis de conflito dos
-PRs são AppModule, package.json e lockfile. O merge preserva o histórico do Grupo
-08, permitindo ao Git reconhecer os commits quando seu PR entrar.
+`app.module.ts`, em ordem alfabética. Mudanças em `common/` devem preservar a
+compatibilidade com os módulos existentes. `app.module.ts`, `package.json` e
+lockfile são pontos compartilhados de integração.
 
-Rooms mantém suas rotas legadas `/v1/rooms` e testes. Seu dono deve reconciliar
-esse prefixo e a composição de leitura com o contrato atual da base. Os demais
-módulos da turma são integrados a partir da main; Students mantém seu E2E
-separado. Courses reutiliza o runner compartilhado para testar Classes real.
+Rooms mantém suas rotas legadas `/v1/rooms` e testes. Students e Reservations
+mantêm E2Es independentes. Courses reutiliza o runner compartilhado para testar
+com Classes real.
 
 As versões NestJS/TypeScript originais foram mantidas: instalação e build
 passaram. O ValidationPipe global sem DTOs foi removido, corrigindo a falha de
@@ -167,8 +222,6 @@ Ajv e ajv-formats são dependências diretas para validar respostas compostas.
 O audit do lockfile herdado reporta avisos, incluindo dois de severidade alta
 na cadeia platform-express/multer. Este módulo não usa upload multipart;
 uma atualização compartilhada dessa cadeia deve ser coordenada com a turma.
-
-Esta contribuição permanece na branch `bff/grupo05`. A base não foi publicada.
 
 GET/HEAD com corpo vazio são encaminhados sem corpo; corpos não vazios nesses
 métodos recebem CO-400. Identificadores `.` e `..` também recebem CO-400 antes
@@ -181,5 +234,5 @@ o contrato offline verificou 352 referências e 19 operações. O E2E novo passo
 CO-503 com parada e restauração de Classes. A limpeza foi executada e Classes
 voltou saudável. Build NestJS e checagem de tipos do E2E também passaram.
 
-O runner compartilhado já foi integrado. A contribuição segue em
-`bff/grupo05`; a base não deve receber push por esta contribuição.
+O runner E2E compartilhado é usado por Courses e continua disponível aos
+demais módulos.
