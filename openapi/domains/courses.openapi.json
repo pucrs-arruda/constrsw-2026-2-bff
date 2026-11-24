@@ -1,0 +1,2460 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Courses API — Courses, Bibliographic References and Syllabus Items",
+    "version": "1.0.0",
+    "description": "Group 05 courses service. Java/Spring Boot and PostgreSQL. Each active course owns one or more active bibliographic references and zero or more syllabus items. A syllabus item is the addressable teaching-plan entry referenced by LessonTopic.syllabusItemId. Bearer access is delegated to the OAuth service. IDs and enabled are server-controlled. Deletion is logical and transactional. Optional fields are omitted instead of null. Dependency failures return 503 using the standard error envelope."
+  },
+  "servers": [
+    {
+      "url": "{baseUrl}/api/v1",
+      "description": "Configurable courses API origin; the local Compose stack uses port 8085.",
+      "variables": {
+        "baseUrl": {
+          "default": "http://localhost:8085",
+          "description": "Courses API origin without /api/v1."
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Courses",
+      "description": "Recurso principal."
+    },
+    {
+      "name": "Bibliographic references",
+      "description": "Coleção secundária pertencente a uma disciplina."
+    },
+    {
+      "name": "Syllabus items",
+      "description": "Itens endereçáveis do plano de ensino de uma disciplina."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "getHealth",
+        "summary": "Saúde do serviço",
+        "description": "Actuator em `/api/v1/health` (`show-details: never`). 200 com `{\"status\":\"UP\"}` e 503 com `{\"status\":\"DOWN\"}`.\n`GET /actuator/health` encaminha para este caminho.\n",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Serviço no ar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "UP"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependência indisponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "description": "Código agregado do actuator quando o HTTP é 503 (DOWN ou OUT_OF_SERVICE)."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses": {
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "createCourse",
+        "summary": "Criar disciplina com referências",
+        "description": "Rejeita código duplicado com 409. A criação da disciplina, das referências e dos itens de plano informados é atômica. A coleção de referências deve conter ao menos um item. syllabusItems é opcional.",
+        "responses": {
+          "201": {
+            "description": "Disciplina e referências criadas na mesma transação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "enabled": true,
+                      "code": "46504-04",
+                      "name": "Construção de Software",
+                      "syllabus": "Modelagem, construção e integração de APIs REST.",
+                      "workloadHours": 60,
+                      "bibliographicReferences": [
+                        {
+                          "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "title": "Engenharia de Software",
+                          "authors": "Ian Sommerville",
+                          "publisher": "Pearson",
+                          "year": 2019,
+                          "edition": "10",
+                          "type": "BASIC"
+                        }
+                      ],
+                      "syllabusItems": [
+                        {
+                          "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "kind": "CONTENT",
+                          "statement": "Modelagem de contratos OpenAPI.",
+                          "order": 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URI do recurso criado.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "example": "/api/v1/courses/42cedfbd-f998-4be7-a278-b74322fdf21a"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseCreate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "code": "46504-04",
+                    "name": "Construção de Software",
+                    "syllabus": "Modelagem, construção e integração de APIs REST.",
+                    "workloadHours": 60,
+                    "bibliographicReferences": [
+                      {
+                        "title": "Engenharia de Software",
+                        "authors": "Ian Sommerville",
+                        "publisher": "Pearson",
+                        "year": 2019,
+                        "edition": "10",
+                        "type": "BASIC"
+                      }
+                    ],
+                    "syllabusItems": [
+                      {
+                        "kind": "CONTENT",
+                        "statement": "Modelagem de contratos OpenAPI.",
+                        "order": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "listCourses",
+        "summary": "Listar ou filtrar disciplinas",
+        "description": "Combina filtros com AND; sem operador explícito aplica igualdade. Sem filtros, uma coleção vazia retorna 200 com []. Com filtros sem correspondência, retorna 404, seguindo o exemplo do Moodle. Filtros desconhecidos ou operadores inválidos retornam 400. Não há paginação nesta entrega.",
+        "responses": {
+          "200": {
+            "description": "Lista de disciplinas com suas referências.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseList"
+                },
+                "examples": {
+                  "example": {
+                    "value": [
+                      {
+                        "id": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                        "enabled": true,
+                        "code": "46504-04",
+                        "name": "Construção de Software",
+                        "syllabus": "Modelagem, construção e integração de APIs REST.",
+                        "workloadHours": 60,
+                        "bibliographicReferences": [
+                          {
+                            "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                            "enabled": true,
+                            "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                            "title": "Engenharia de Software",
+                            "authors": "Ian Sommerville",
+                            "publisher": "Pearson",
+                            "year": 2019,
+                            "edition": "10",
+                            "type": "BASIC"
+                          }
+                        ],
+                        "syllabusItems": [
+                          {
+                            "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                            "enabled": true,
+                            "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                            "kind": "CONTENT",
+                            "statement": "Modelagem de contratos OpenAPI.",
+                            "order": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CodeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/NameFilter"
+          },
+          {
+            "$ref": "#/components/parameters/WorkloadHoursFilter"
+          }
+        ]
+      }
+    },
+    "/courses/{courseId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CourseId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "getCourse",
+        "summary": "Consultar disciplina por ID",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Disciplina completa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "enabled": true,
+                      "code": "46504-04",
+                      "name": "Construção de Software",
+                      "syllabus": "Modelagem, construção e integração de APIs REST.",
+                      "workloadHours": 60,
+                      "bibliographicReferences": [
+                        {
+                          "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "title": "Engenharia de Software",
+                          "authors": "Ian Sommerville",
+                          "publisher": "Pearson",
+                          "year": 2019,
+                          "edition": "10",
+                          "type": "BASIC"
+                        }
+                      ],
+                      "syllabusItems": [
+                        {
+                          "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "kind": "CONTENT",
+                          "statement": "Modelagem de contratos OpenAPI.",
+                          "order": 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "replaceCourse",
+        "summary": "Substituir campos escalares da disciplina",
+        "description": "Substitui os campos escalares; `syllabus` omitida é removida. Preserva IDs e a coleção de referências, gerenciada exclusivamente nas rotas secundárias. Código duplicado retorna 409.",
+        "responses": {
+          "200": {
+            "description": "Disciplina completa após substituição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "enabled": true,
+                      "code": "46504-04",
+                      "name": "Construção de Software",
+                      "syllabus": "Modelagem, construção e integração de APIs REST.",
+                      "workloadHours": 60,
+                      "bibliographicReferences": [
+                        {
+                          "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "title": "Engenharia de Software",
+                          "authors": "Ian Sommerville",
+                          "publisher": "Pearson",
+                          "year": 2019,
+                          "edition": "10",
+                          "type": "BASIC"
+                        }
+                      ],
+                      "syllabusItems": [
+                        {
+                          "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "kind": "CONTENT",
+                          "statement": "Modelagem de contratos OpenAPI.",
+                          "order": 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseUpdate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "code": "46504-04",
+                    "name": "Construção de Software",
+                    "syllabus": "Modelagem, construção e integração de APIs REST.",
+                    "workloadHours": 60
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "patchCourse",
+        "summary": "Alterar parcialmente a disciplina",
+        "description": "Objeto JSON com ao menos um campo escalar editável. Campos omitidos permanecem inalterados. Não é JSON Patch nem JSON Merge Patch; null e alterações diretas na coleção não são aceitos.",
+        "responses": {
+          "200": {
+            "description": "Disciplina completa após alteração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "enabled": true,
+                      "code": "46504-04",
+                      "name": "Construção de Software",
+                      "syllabus": "Modelagem, construção e integração de APIs REST.",
+                      "workloadHours": 80,
+                      "bibliographicReferences": [
+                        {
+                          "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "title": "Engenharia de Software",
+                          "authors": "Ian Sommerville",
+                          "publisher": "Pearson",
+                          "year": 2019,
+                          "edition": "10",
+                          "type": "BASIC"
+                        }
+                      ],
+                      "syllabusItems": [
+                        {
+                          "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "enabled": true,
+                          "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                          "kind": "CONTENT",
+                          "statement": "Modelagem de contratos OpenAPI.",
+                          "order": 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoursePatch"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "workloadHours": 80
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "deleteCourse",
+        "summary": "Excluir disciplina, referências e itens do plano (exclusão lógica)",
+        "description": "Exclusão lógica: define enabled=false na disciplina, em todas as suas referências e em todos os seus itens de plano, na mesma transação; nada é removido do banco.",
+        "responses": {
+          "204": {
+            "description": "Disciplina e suas referências excluídas logicamente (`enabled=false`); sem corpo."
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/courses/{courseId}/bibliographic-references": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CourseId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "createReference",
+        "summary": "Adicionar referência à disciplina",
+        "description": "O servidor atribui o ID e o vínculo à disciplina do path. A mesma obra pode aparecer em outras disciplinas como outro registro; não há unicidade global por título ou ISBN.",
+        "responses": {
+          "201": {
+            "description": "Referência criada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliographicReference"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "title": "Engenharia de Software",
+                      "authors": "Ian Sommerville",
+                      "publisher": "Pearson",
+                      "year": 2019,
+                      "edition": "10",
+                      "type": "BASIC"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URI do recurso criado.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "example": "/api/v1/courses/42cedfbd-f998-4be7-a278-b74322fdf21a/bibliographic-references/079edc66-7c2d-49da-bd20-523ec4b99cf4"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BibliographicReferenceCreate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "title": "Engenharia de Software",
+                    "authors": "Ian Sommerville",
+                    "publisher": "Pearson",
+                    "year": 2019,
+                    "edition": "10",
+                    "type": "BASIC"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "listReferences",
+        "summary": "Listar ou filtrar referências da disciplina",
+        "description": "Checa a existência da disciplina antes da busca. Combina filtros com AND e limita o resultado às referências dessa disciplina. Com filtros sem correspondência, retorna 404. Sem paginação; atributos ou operadores desconhecidos geram 400.",
+        "responses": {
+          "200": {
+            "description": "Referências da disciplina que atendem aos filtros.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliographicReferenceList"
+                },
+                "examples": {
+                  "example": {
+                    "value": [
+                      {
+                        "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                        "enabled": true,
+                        "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                        "title": "Engenharia de Software",
+                        "authors": "Ian Sommerville",
+                        "publisher": "Pearson",
+                        "year": 2019,
+                        "edition": "10",
+                        "type": "BASIC"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TitleFilter"
+          },
+          {
+            "$ref": "#/components/parameters/AuthorsFilter"
+          },
+          {
+            "$ref": "#/components/parameters/YearFilter"
+          },
+          {
+            "$ref": "#/components/parameters/TypeFilter"
+          }
+        ]
+      }
+    },
+    "/courses/{courseId}/bibliographic-references/{referenceId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CourseId"
+        },
+        {
+          "$ref": "#/components/parameters/ReferenceId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "getReference",
+        "summary": "Consultar referência da disciplina",
+        "description": "Retorna 404 se a disciplina não existir, se a referência não existir ou se pertencer a outra disciplina.",
+        "responses": {
+          "200": {
+            "description": "Referência completa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliographicReference"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "title": "Engenharia de Software",
+                      "authors": "Ian Sommerville",
+                      "publisher": "Pearson",
+                      "year": 2019,
+                      "edition": "10",
+                      "type": "BASIC"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "replaceReference",
+        "summary": "Substituir referência da disciplina",
+        "description": "Checa o vínculo com a disciplina do path. Substitui os dados editáveis e remove opcionais omitidos. Preserva id e courseId; referências de outra disciplina retornam 404.",
+        "responses": {
+          "200": {
+            "description": "Referência completa após substituição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliographicReference"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "title": "Engenharia de Software",
+                      "authors": "Ian Sommerville",
+                      "publisher": "Pearson",
+                      "year": 2019,
+                      "edition": "10",
+                      "type": "BASIC"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BibliographicReferenceUpdate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "title": "Engenharia de Software",
+                    "authors": "Ian Sommerville",
+                    "publisher": "Pearson",
+                    "year": 2019,
+                    "edition": "10",
+                    "type": "BASIC"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "patchReference",
+        "summary": "Alterar parcialmente a referência",
+        "description": "Checa o vínculo com a disciplina do path. Objeto JSON com ao menos um atributo editável; omissões preservam valores. null e alterações de id ou courseId não são aceitos. Referências de outra disciplina retornam 404.",
+        "responses": {
+          "200": {
+            "description": "Referência completa após alteração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliographicReference"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "079edc66-7c2d-49da-bd20-523ec4b99cf4",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "title": "Engenharia de Software",
+                      "authors": "Ian Sommerville",
+                      "publisher": "Pearson",
+                      "year": 2019,
+                      "edition": "10",
+                      "type": "SUPPLEMENTARY"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BibliographicReferencePatch"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "type": "SUPPLEMENTARY"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Bibliographic references"
+        ],
+        "operationId": "deleteReference",
+        "summary": "Excluir referência da disciplina (exclusão lógica)",
+        "description": "Checa a propriedade da referência e, em transação com controle de concorrência, impede excluir a última referência ativa (`enabled=true`) de uma disciplina existente (409). Exclusão lógica: define `enabled=false`; nada é removido do banco. Referências de outra disciplina retornam 404.",
+        "responses": {
+          "204": {
+            "description": "Referência excluída logicamente (`enabled=false`); sem corpo."
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/courses/{courseId}/syllabus-items": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CourseId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "createSyllabusItem",
+        "summary": "Adicionar item ao plano de ensino",
+        "description": "O servidor atribui o ID e o vínculo à disciplina do path. Retorna 409 se a ordem já pertencer a outro item ativo da mesma disciplina.",
+        "responses": {
+          "201": {
+            "description": "Item do plano criado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItem"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "kind": "CONTENT",
+                      "statement": "Modelagem de contratos OpenAPI.",
+                      "order": 1
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URI do recurso criado.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "example": "/api/v1/courses/42cedfbd-f998-4be7-a278-b74322fdf21a/syllabus-items/8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyllabusItemCreate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "kind": "CONTENT",
+                    "statement": "Modelagem de contratos OpenAPI.",
+                    "order": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "listSyllabusItems",
+        "summary": "Listar ou filtrar itens do plano",
+        "description": "Checa a existência da disciplina antes da busca. Combina filtros com AND. Com filtros sem correspondência, retorna 404. Sem paginação.",
+        "responses": {
+          "200": {
+            "description": "Itens do plano que atendem aos filtros.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItemList"
+                },
+                "examples": {
+                  "example": {
+                    "value": [
+                      {
+                        "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                        "enabled": true,
+                        "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                        "kind": "CONTENT",
+                        "statement": "Modelagem de contratos OpenAPI.",
+                        "order": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KindFilter"
+          },
+          {
+            "$ref": "#/components/parameters/StatementFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OrderFilter"
+          }
+        ]
+      }
+    },
+    "/courses/{courseId}/syllabus-items/{syllabusItemId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CourseId"
+        },
+        {
+          "$ref": "#/components/parameters/SyllabusItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "getSyllabusItem",
+        "summary": "Consultar item do plano na disciplina",
+        "description": "Retorna 404 se a disciplina não existir, se o item não existir ou se pertencer a outra disciplina.",
+        "responses": {
+          "200": {
+            "description": "Item do plano.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItem"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "kind": "CONTENT",
+                      "statement": "Modelagem de contratos OpenAPI.",
+                      "order": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "replaceSyllabusItem",
+        "summary": "Substituir item do plano",
+        "description": "Substitui kind, enunciado e ordem. Preserva id e courseId. Ordem repetida em outro item ativo retorna 409. Item de outra disciplina retorna 404.",
+        "responses": {
+          "200": {
+            "description": "Item do plano após substituição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItem"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "kind": "CONTENT",
+                      "statement": "Modelagem de contratos OpenAPI.",
+                      "order": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyllabusItemUpdate"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "kind": "CONTENT",
+                    "statement": "Modelagem de contratos OpenAPI.",
+                    "order": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "patchSyllabusItem",
+        "summary": "Alterar parcialmente o item do plano",
+        "description": "Altera somente os campos informados. Omissões preservam valores. null não é aceito. Ordem repetida retorna 409.",
+        "responses": {
+          "200": {
+            "description": "Item do plano após alteração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItem"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "kind": "CONTENT",
+                      "statement": "Modelagem de contratos OpenAPI e de tópicos de aula.",
+                      "order": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyllabusItemPatch"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "statement": "Modelagem de contratos OpenAPI e de tópicos de aula."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "deleteSyllabusItem",
+        "summary": "Excluir item do plano (exclusão lógica)",
+        "description": "Define enabled=false. O item deixa de aparecer nas consultas. Não há mínimo de itens. Item de outra disciplina retorna 404.",
+        "responses": {
+          "204": {
+            "description": "Item excluído logicamente (`enabled=false`); sem corpo."
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/courses/syllabus-items/{syllabusItemId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SyllabusItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Syllabus items"
+        ],
+        "operationId": "findSyllabusItem",
+        "summary": "Buscar item do plano pelo identificador",
+        "description": "Consulta usada por LessonTopic.syllabusItemId, que guarda só o UUID. Retorna 404 se o item não existir, estiver excluído ou se a disciplina dona estiver excluída.",
+        "responses": {
+          "200": {
+            "description": "Item do plano.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusItem"
+                },
+                "examples": {
+                  "example": {
+                    "value": {
+                      "id": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "enabled": true,
+                      "courseId": "42cedfbd-f998-4be7-a278-b74322fdf21a",
+                      "kind": "CONTENT",
+                      "statement": "Modelagem de contratos OpenAPI.",
+                      "order": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token válido emitido pelo Keycloak/serviço OAuth do projeto."
+      }
+    },
+    "schemas": {
+      "BibliographicReferenceCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 300
+          },
+          "authors": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Autores em texto; pode conter vários nomes."
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 150
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 50
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "SUPPLEMENTARY"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "authors",
+          "type"
+        ],
+        "description": "Nova referência da disciplina indicada no path; id e courseId são definidos pelo servidor.",
+        "title": "BibliographicReferenceCreate"
+      },
+      "BibliographicReferenceUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 300
+          },
+          "authors": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Autores em texto; pode conter vários nomes."
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 150
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 50
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "SUPPLEMENTARY"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "authors",
+          "type"
+        ],
+        "description": "Substitui os campos da referência. Campos opcionais omitidos são removidos; IDs permanecem imutáveis.",
+        "title": "BibliographicReferenceUpdate"
+      },
+      "BibliographicReferencePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 300
+          },
+          "authors": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Autores em texto; pode conter vários nomes."
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 150
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 50
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "SUPPLEMENTARY"
+            ]
+          }
+        },
+        "description": "Altera somente os campos informados. Campos omitidos permanecem inalterados; null não é aceito.",
+        "minProperties": 1,
+        "title": "BibliographicReferencePatch"
+      },
+      "BibliographicReference": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "readOnly": true,
+            "default": true,
+            "description": "Exclusão lógica: true para registro ativo; false para registro excluído logicamente. Controlado pelo servidor."
+          },
+          "courseId": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 300
+          },
+          "authors": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Autores em texto; pode conter vários nomes."
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 150
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 50
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "SUPPLEMENTARY"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "enabled",
+          "courseId",
+          "title",
+          "authors",
+          "type"
+        ],
+        "title": "BibliographicReference"
+      },
+      "CourseCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 20,
+            "description": "Código único da disciplina."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 200
+          },
+          "syllabus": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "workloadHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "bibliographicReferences": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/BibliographicReferenceCreate"
+            }
+          },
+          "syllabusItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyllabusItemCreate"
+            },
+            "description": "Itens iniciais do plano de ensino. Opcional; a coleção também tem rotas próprias."
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "workloadHours",
+          "bibliographicReferences"
+        ],
+        "description": "Criação atômica da disciplina, de ao menos uma referência bibliográfica e, se informados, dos itens do plano de ensino.",
+        "title": "CourseCreate"
+      },
+      "CourseUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 20,
+            "description": "Código único da disciplina."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 200
+          },
+          "syllabus": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "workloadHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "workloadHours"
+        ],
+        "description": "Substitui todos os campos escalares editáveis da disciplina. Ementa omitida é removida. Referências e itens do plano são preservados e têm rotas próprias.",
+        "title": "CourseUpdate"
+      },
+      "CoursePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 20,
+            "description": "Código único da disciplina."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 200
+          },
+          "syllabus": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "workloadHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "description": "Altera somente campos escalares informados; referências e itens do plano são gerenciados nas rotas secundárias. Campos omitidos são preservados; null não é aceito.",
+        "minProperties": 1,
+        "title": "CoursePatch"
+      },
+      "Course": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "readOnly": true,
+            "default": true,
+            "description": "Exclusão lógica: true para registro ativo; false para registro excluído logicamente. Controlado pelo servidor."
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 20,
+            "description": "Código único da disciplina."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 200
+          },
+          "syllabus": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "workloadHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "bibliographicReferences": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/BibliographicReference"
+            }
+          },
+          "syllabusItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyllabusItem"
+            },
+            "description": "Itens endereçáveis do plano de ensino. Pode ser vazia; cada item tem id próprio para LessonTopic.syllabusItemId."
+          }
+        },
+        "required": [
+          "id",
+          "enabled",
+          "code",
+          "name",
+          "workloadHours",
+          "bibliographicReferences",
+          "syllabusItems"
+        ],
+        "title": "Course"
+      },
+      "CourseList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Course"
+        },
+        "title": "CourseList"
+      },
+      "BibliographicReferenceList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/BibliographicReference"
+        },
+        "title": "BibliographicReferenceList"
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "error_description": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "error_source": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "error_stack": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "error_code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "error_description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "error_source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "error_code",
+                "error_description",
+                "error_source"
+              ]
+            }
+          }
+        },
+        "required": [
+          "error_code",
+          "error_description",
+          "error_source",
+          "error_stack"
+        ],
+        "description": "Formato de erro do projeto; a pilha contém descrições de domínio sanitizadas, sem credenciais ou stack traces internos.",
+        "title": "ApiError"
+      },
+      "SyllabusItemCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "BIBLIOGRAPHY",
+              "CRITERION"
+            ],
+            "description": "Tipo do item do plano: CONTENT (conteúdo), BIBLIOGRAPHY (bibliografia) ou CRITERION (critério)."
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 2000,
+            "description": "Enunciado do item do plano de ensino."
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32767,
+            "description": "Posição do item no plano da disciplina; única entre os itens ativos."
+          }
+        },
+        "required": [
+          "kind",
+          "statement",
+          "order"
+        ],
+        "description": "Novo item do plano de ensino da disciplina indicada no path. id e courseId são definidos pelo servidor.",
+        "title": "SyllabusItemCreate"
+      },
+      "SyllabusItemUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "BIBLIOGRAPHY",
+              "CRITERION"
+            ],
+            "description": "Tipo do item do plano: CONTENT (conteúdo), BIBLIOGRAPHY (bibliografia) ou CRITERION (critério)."
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 2000,
+            "description": "Enunciado do item do plano de ensino."
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32767,
+            "description": "Posição do item no plano da disciplina; única entre os itens ativos."
+          }
+        },
+        "required": [
+          "kind",
+          "statement",
+          "order"
+        ],
+        "description": "Substitui os campos do item. IDs permanecem imutáveis. A ordem não pode repetir a de outro item ativo da mesma disciplina.",
+        "title": "SyllabusItemUpdate"
+      },
+      "SyllabusItemPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "BIBLIOGRAPHY",
+              "CRITERION"
+            ],
+            "description": "Tipo do item do plano: CONTENT (conteúdo), BIBLIOGRAPHY (bibliografia) ou CRITERION (critério)."
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 2000,
+            "description": "Enunciado do item do plano de ensino."
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32767,
+            "description": "Posição do item no plano da disciplina; única entre os itens ativos."
+          }
+        },
+        "description": "Altera somente os campos informados. Campos omitidos permanecem inalterados; null não é aceito.",
+        "minProperties": 1,
+        "title": "SyllabusItemPatch"
+      },
+      "SyllabusItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "readOnly": true,
+            "default": true,
+            "description": "Exclusão lógica: true para registro ativo; false para registro excluído logicamente. Controlado pelo servidor."
+          },
+          "courseId": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "CONTENT",
+              "BIBLIOGRAPHY",
+              "CRITERION"
+            ],
+            "description": "Tipo do item do plano: CONTENT (conteúdo), BIBLIOGRAPHY (bibliografia) ou CRITERION (critério)."
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "maxLength": 2000,
+            "description": "Enunciado do item do plano de ensino."
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32767,
+            "description": "Posição do item no plano da disciplina; única entre os itens ativos."
+          }
+        },
+        "required": [
+          "id",
+          "enabled",
+          "courseId",
+          "kind",
+          "statement",
+          "order"
+        ],
+        "title": "SyllabusItem"
+      },
+      "SyllabusItemList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SyllabusItem"
+        },
+        "title": "SyllabusItemList"
+      }
+    },
+    "parameters": {
+      "CourseId": {
+        "name": "courseId",
+        "in": "path",
+        "required": true,
+        "description": "UUID da disciplina.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "example": "42cedfbd-f998-4be7-a278-b74322fdf21a"
+      },
+      "ReferenceId": {
+        "name": "referenceId",
+        "in": "path",
+        "required": true,
+        "description": "UUID de uma referência pertencente à disciplina do path.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "example": "079edc66-7c2d-49da-bd20-523ec4b99cf4"
+      },
+      "CodeFilter": {
+        "name": "code",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade ou {neq}.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\{).*\\S.*$",
+              "maxLength": 20
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq)\\}.*\\S.*$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "46504-04"
+          },
+          "2": {
+            "value": "{neq}46504-04"
+          }
+        }
+      },
+      "NameFilter": {
+        "name": "name",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade, {neq} ou {like}. Em {like}, % representa qualquer sequência e _ um caractere; percent-encode a URL.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\{).*\\S.*$",
+              "maxLength": 200
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|like)\\}.*\\S.*$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "Construção de Software"
+          },
+          "2": {
+            "value": "{like}%Software%"
+          }
+        }
+      },
+      "WorkloadHoursFilter": {
+        "name": "workloadHours",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade positiva ou comparações {neq}, {gt}, {gteq}, {lt}, {lteq}; operandos comparativos entre 0 e 2147483647, sem sinal nem zeros à esquerda.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|gt|gteq|lt|lteq)\\}(?:0|[1-9][0-9]{0,8}|1[0-9]{9}|20[0-9]{8}|21[0-3][0-9]{7}|214[0-6][0-9]{6}|2147[0-3][0-9]{5}|21474[0-7][0-9]{4}|214748[0-2][0-9]{3}|2147483[0-5][0-9]{2}|21474836[0-3][0-9]|214748364[0-7])$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": 60
+          },
+          "2": {
+            "value": "{gteq}60"
+          },
+          "3": {
+            "value": "{lt}120"
+          }
+        }
+      },
+      "TitleFilter": {
+        "name": "title",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade, {neq} ou {like}. Em {like}, % e _ funcionam como curingas.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\{).*\\S.*$",
+              "maxLength": 300
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|like)\\}.*\\S.*$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "Engenharia de Software"
+          },
+          "2": {
+            "value": "{like}%Software%"
+          }
+        }
+      },
+      "AuthorsFilter": {
+        "name": "authors",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade, {neq} ou {like} sobre o texto de `authors`.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\{).*\\S.*$"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|like)\\}.*\\S.*$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "Ian Sommerville"
+          },
+          "2": {
+            "value": "{like}%Sommerville%"
+          }
+        }
+      },
+      "YearFilter": {
+        "name": "year",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade de 1 a 9999 ou comparações com operandos entre 0 e 9999, sem sinal nem zeros à esquerda. Ausência de ano não corresponde a filtros sobre ano.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9999
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|gt|gteq|lt|lteq)\\}(?:0|[1-9][0-9]{0,3})$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": 2019
+          },
+          "2": {
+            "value": "{gteq}2010"
+          }
+        }
+      },
+      "TypeFilter": {
+        "name": "type",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade ou {neq} para BASIC e SUPPLEMENTARY.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "BASIC",
+            "SUPPLEMENTARY",
+            "{neq}BASIC",
+            "{neq}SUPPLEMENTARY"
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "BASIC"
+          },
+          "2": {
+            "value": "{neq}SUPPLEMENTARY"
+          }
+        }
+      },
+      "SyllabusItemId": {
+        "name": "syllabusItemId",
+        "in": "path",
+        "required": true,
+        "description": "UUID de um item do plano de ensino.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "example": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59"
+      },
+      "KindFilter": {
+        "name": "kind",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade ou {neq} para CONTENT, BIBLIOGRAPHY e CRITERION.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "CONTENT",
+            "BIBLIOGRAPHY",
+            "CRITERION",
+            "{neq}CONTENT",
+            "{neq}BIBLIOGRAPHY",
+            "{neq}CRITERION"
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "CONTENT"
+          },
+          "2": {
+            "value": "{neq}CRITERION"
+          }
+        }
+      },
+      "StatementFilter": {
+        "name": "statement",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade, {neq} ou {like} sobre o enunciado. Em {like}, % representa qualquer sequência.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\{).*\\S.*$",
+              "maxLength": 2000
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|like)\\}.*\\S.*$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": "Modelagem de contratos OpenAPI."
+          },
+          "2": {
+            "value": "{like}%OpenAPI%"
+          }
+        }
+      },
+      "OrderFilter": {
+        "name": "order",
+        "in": "query",
+        "required": false,
+        "description": "Igualdade de 1 a 32767 ou comparações com operandos entre 0 e 32767, sem sinal nem zeros à esquerda.",
+        "schema": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32767
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{(?:neq|gt|gteq|lt|lteq)\\}(?:0|[1-9][0-9]{0,4})$"
+            }
+          ]
+        },
+        "examples": {
+          "1": {
+            "value": 1
+          },
+          "2": {
+            "value": "{gteq}1"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "Requisição inválida: JSON, UUID, filtros, atributos. Propriedades desconhecidas também geram 400.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error_code": "CO-400",
+                  "error_description": "Requisição inválida: JSON, UUID, filtros, atributos. Propriedades desconhecidas também geram 400.",
+                  "error_source": "CoursesAPI",
+                  "error_stack": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Token Bearer ausente, inválido ou expirado.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error_code": "CO-401",
+                  "error_description": "Token Bearer ausente, inválido ou expirado.",
+                  "error_source": "CoursesAPI",
+                  "error_stack": []
+                }
+              }
+            }
+          }
+        },
+        "headers": {
+          "WWW-Authenticate": {
+            "description": "Desafio de autenticação Bearer.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Bearer"
+          }
+        }
+      },
+      "Error403": {
+        "description": "Usuário autenticado sem permissão para esta operação.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error_code": "CO-403",
+                  "error_description": "Usuário autenticado sem permissão para esta operação.",
+                  "error_source": "CoursesAPI",
+                  "error_stack": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error404": {
+        "description": "Disciplina, referência ou item de plano não encontrado; referência ou item não pertence à disciplina indicada; ou nenhum resultado para os filtros informados.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error_code": "CO-404",
+                  "error_description": "Disciplina, referência ou item de plano não encontrado; referência ou item não pertence à disciplina indicada; ou nenhum resultado para os filtros informados.",
+                  "error_source": "CoursesAPI",
+                  "error_stack": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error409": {
+        "description": "Conflito com uma regra de domínio: código de disciplina duplicado, tentativa de remover sua última referência, ou ordem de item de plano já usada por outro item ativo da mesma disciplina.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error_code": "CO-409",
+                  "error_description": "Conflito com uma regra de domínio: código de disciplina duplicado, tentativa de remover sua última referência, ou ordem de item de plano já usada por outro item ativo da mesma disciplina.",
+                  "error_source": "CoursesAPI",
+                  "error_stack": []
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error503": {
+        "description": "The OAuth dependency is unavailable or returned an invalid response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "error_code": "CO-503",
+              "error_description": "The OAuth service is unavailable.",
+              "error_source": "CoursesAPI",
+              "error_stack": []
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -46,6 +46,7 @@ export class CircuitBreaker {
 	private outcomes: Outcome[] = [];
 	private openedAt = 0;
 	private halfOpenInFlight = false;
+	private generation = 0;
 
 	constructor(private readonly options: CircuitBreakerOptions) {}
 
@@ -53,6 +54,7 @@ export class CircuitBreaker {
 	currentState(now: number = Date.now()): State {
 		if (this.state === 'open' && now - this.openedAt >= this.options.resetTimeoutMs) {
 			this.state = 'half-open';
+			this.generation++;
 			this.halfOpenInFlight = false;
 		}
 		return this.state;
@@ -62,8 +64,9 @@ export class CircuitBreaker {
 	 * Executa `call` sob o disjuntor. Lança {@link CircuitOpenError} sem tocar no downstream
 	 * quando o circuito está aberto.
 	 */
-	async run<T>(call: () => Promise<T>, now: () => number = Date.now): Promise<T> {
+	async run<T>(call: () => Promise<T>, now: () => number = Date.now, failed: (result: T) => boolean = () => false, ignoreFailure: (error: unknown) => boolean = () => false): Promise<T> {
 		const state = this.currentState(now());
+		const generation = this.generation;
 
 		if (state === 'open') {
 			throw new CircuitOpenError(this.options.name);
@@ -77,11 +80,18 @@ export class CircuitBreaker {
 
 		try {
 			const result = await call();
-			this.onSuccess(now());
+			if (generation === this.generation) {
+				if (failed(result)) this.onFailure(now());
+				else this.onSuccess(now());
+			}
 			return result;
 		}
 		catch (error) {
-			this.onFailure(now());
+			if (generation === this.generation) {
+				if (ignoreFailure(error)) {
+					if (state === 'half-open') this.halfOpenInFlight = false;
+				} else this.onFailure(now());
+			}
 			throw error;
 		}
 	}
@@ -126,6 +136,7 @@ export class CircuitBreaker {
 	}
 
 	private trip(now: number): void {
+		this.generation++;
 		this.state = 'open';
 		this.openedAt = now;
 		this.halfOpenInFlight = false;
@@ -133,6 +144,7 @@ export class CircuitBreaker {
 	}
 
 	private reset(): void {
+		this.generation++;
 		this.state = 'closed';
 		this.openedAt = 0;
 		this.halfOpenInFlight = false;

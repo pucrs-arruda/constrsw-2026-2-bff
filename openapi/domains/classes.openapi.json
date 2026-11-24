@@ -1,0 +1,1420 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Classes API",
+    "version": "0.1.0",
+    "summary": "Domínio classes — Class (turma) 1–N Avaliação (review anônima)",
+    "description": "Contrato OpenAPI 3.1 do contexto `classes` (ConstrSW 2026/2).\n\n- IDs de contrato = UUID string\n- JSON camelCase; listagens são arrays JSON, sem envelope `items`\n- Recusas `application/problem+json` com `code` estável (FR)\n- `autorId` nunca no contrato público de leitura\n- `averageRating` calculado (não persistido)\n- `startDate`/`endDate` = datas do período da oferta (não horários)\n- `year` = ano em que a turma foi ofertada (2000–2100)\n- `semester` = semestre em que a turma foi ofertada (`1` ou `2`)\n- `year` e `semester` são imutáveis após a criação, como `startDate` e `endDate`\n\nFiltros: equals (`status=active`) ou `{op}` no valor —\n`neq`, `gt`, `gteq`, `lt`, `lteq`, `like`\n(ex. `status={neq}closed`, `seats={gteq}30`).\n\nSchemas JSON Schema espelhados também em `./schemas/` (artefato separado).\n\n## Exclusão lógica\n\nTodas as exclusões são lógicas e controladas pelo atributo `enabled` das classes. Um `DELETE` não remove o registro do banco: apenas define `enabled=false`. O atributo é somente leitura (`readOnly`): nasce `true` e não pode ser enviado pelo cliente.\n\nRegistros com `enabled=false` não aparecem nas listagens, a consulta por id responde `404` e não podem ser alterados nem excluídos novamente (`404`).\n",
+    "license": {
+      "name": "Proprietary — PUCRS ConstrSW"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API classes (local / compose)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "classes",
+      "description": "Coleção principal — Class (turma)"
+    },
+    {
+      "name": "reviews",
+      "description": "Coleção secundária — Avaliações da Class"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/classes": {
+      "post": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "createClass",
+        "summary": "Criar Class",
+        "description": "Coordenador cria turma. Realiza FR-1.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Class criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Class"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "listClasses",
+        "summary": "Listar Classes (filtros simples/complexos)",
+        "description": "FR-2. Equals: `status=active`.\nOperadores: `status={neq}closed`, `seats={gt}20`,\n`startDate={gteq}2026-02-01`, `year=2026`, `semester=1`, `label={like}%BD%`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/filterId"
+          },
+          {
+            "$ref": "#/components/parameters/filterStatus"
+          },
+          {
+            "$ref": "#/components/parameters/filterCourseId"
+          },
+          {
+            "$ref": "#/components/parameters/filterRoomId"
+          },
+          {
+            "$ref": "#/components/parameters/filterStartDate"
+          },
+          {
+            "$ref": "#/components/parameters/filterEndDate"
+          },
+          {
+            "$ref": "#/components/parameters/filterYear"
+          },
+          {
+            "$ref": "#/components/parameters/filterSemester"
+          },
+          {
+            "$ref": "#/components/parameters/filterSeats"
+          },
+          {
+            "$ref": "#/components/parameters/filterCode"
+          },
+          {
+            "$ref": "#/components/parameters/filterLabel"
+          },
+          {
+            "$ref": "#/components/parameters/filterModality"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de Classes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/classes/import": {
+      "post": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "importClasses",
+        "summary": "Importar Classes",
+        "description": "Coordenador envia um array de turmas. `id` é opcional (o servidor gera se faltar).\n`status` default `active` e `studentIds` default `[]`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Turmas importadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/api/v1/classes/{classId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/classId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "getClassById",
+        "summary": "Obter Class por id",
+        "responses": {
+          "200": {
+            "description": "Class",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Class"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "replaceClass",
+        "summary": "Atualizar Class (total)",
+        "description": "PUT total. startDate/endDate e year/semester imutáveis após create → 422 se alterados.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Class atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Class"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "patchClass",
+        "summary": "Atualizar Class (parcial)",
+        "description": "PATCH parcial (FR-3). Encerrar via `status=closed` (FR-4).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Class atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Class"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "classes"
+        ],
+        "operationId": "deleteClass",
+        "summary": "Excluir Class (exclusão lógica)",
+        "description": "DELETE exigido pela rubrica da disciplina. Exclusão lógica: define `enabled=false` na Class e nas suas Avaliações; nada é removido do banco.\nEncerrar a turma (`status=closed`, FR-4) não é exclusão: a Class encerrada continua visível com `enabled=true`.\n",
+        "responses": {
+          "204": {
+            "description": "Excluída logicamente (`enabled=false`)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/classes/{classId}/reviews": {
+      "description": "O mesmo controlador também atende `/api/v1/classes/{classId}/avaliacoes`\ne `/api/v1/classes/{classId}/avaliacoes/{reviewId}`.\n",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/classId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "createReview",
+        "summary": "Criar Avaliação na Class",
+        "description": "FR-6. Caller no roster. Uma Avaliação por autor×Class.\nClass encerrada → 422. Body sem autorId.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Avaliação criada (sem autorId)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Já existe Avaliação deste autor nesta Class",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "listReviews",
+        "summary": "Listar Avaliações da Class",
+        "description": "FR-7 / FR-8. Sem autorId. A resposta é um array.\nA média fica em `Class.averageRating`, não neste corpo.\nO filtro de nota também aceita o parâmetro `notaOrdinal`.\n",
+        "parameters": [
+          {
+            "name": "ordinalRating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FilterOperatorValue"
+            }
+          },
+          {
+            "name": "notaOrdinal",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FilterOperatorValue"
+            }
+          },
+          {
+            "name": "createdAt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FilterOperatorValue"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array de avaliações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/classes/{classId}/reviews/{reviewId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/classId"
+        },
+        {
+          "$ref": "#/components/parameters/reviewId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "getReviewById",
+        "summary": "Obter Avaliação por id",
+        "responses": {
+          "200": {
+            "description": "Avaliação (sem autorId)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "replaceReview",
+        "summary": "Atualizar Avaliação (total)",
+        "description": "FR-9. Somente o próprio autor.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "patchReview",
+        "summary": "Atualizar Avaliação (parcial)",
+        "description": "FR-9. Somente o próprio autor.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "reviews"
+        ],
+        "operationId": "deleteReview",
+        "summary": "Excluir Avaliação (exclusão lógica)",
+        "description": "FR-9. Somente o próprio autor. Exclusão lógica: define `enabled=false`; a Avaliação deixa de contar no `averageRating`.",
+        "responses": {
+          "204": {
+            "description": "Excluída logicamente (`enabled=false`)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT via gateway OAuth / BFF (papéis Closed CRAS)."
+      }
+    },
+    "parameters": {
+      "classId": {
+        "name": "classId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Uuid"
+        }
+      },
+      "reviewId": {
+        "name": "reviewId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Uuid"
+        }
+      },
+      "filterId": {
+        "name": "id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        }
+      },
+      "filterStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "examples": {
+          "equals": {
+            "value": "active"
+          },
+          "notEquals": {
+            "value": "{neq}closed"
+          }
+        }
+      },
+      "filterCourseId": {
+        "name": "courseId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        }
+      },
+      "filterRoomId": {
+        "name": "roomId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        }
+      },
+      "filterStartDate": {
+        "name": "startDate",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "example": "{gteq}2026-02-01"
+      },
+      "filterEndDate": {
+        "name": "endDate",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "example": "{lteq}2026-07-31"
+      },
+      "filterYear": {
+        "name": "year",
+        "in": "query",
+        "required": false,
+        "description": "Ano em que a turma foi ofertada.",
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "example": "2026"
+      },
+      "filterSemester": {
+        "name": "semester",
+        "in": "query",
+        "required": false,
+        "description": "Semestre em que a turma foi ofertada (1 ou 2).",
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "example": "1"
+      },
+      "filterSeats": {
+        "name": "seats",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "examples": {
+          "gt": {
+            "value": "{gt}20"
+          },
+          "lteq": {
+            "value": "{lteq}40"
+          }
+        }
+      },
+      "filterCode": {
+        "name": "code",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        }
+      },
+      "filterLabel": {
+        "name": "label",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        },
+        "example": "{like}%Lab%"
+      },
+      "filterModality": {
+        "name": "modality",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FilterOperatorValue"
+        }
+      }
+    },
+    "schemas": {
+      "Uuid": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Identificador opaco UUID (contrato = string)."
+      },
+      "UuidArray": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Uuid"
+        },
+        "uniqueItems": true
+      },
+      "ClassStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "closed"
+        ]
+      },
+      "OrdinalRating": {
+        "type": "string",
+        "enum": [
+          "very_bad",
+          "bad",
+          "fair",
+          "good",
+          "very_good"
+        ],
+        "description": "Escala ordinal (mapa interno 1..5 só para média)."
+      },
+      "AverageRating": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 1,
+        "maximum": 5,
+        "multipleOf": 0.1,
+        "description": "Média 1.0..5.0 uma casa; null se n=0. Calculado, não persistido."
+      },
+      "IsoDate": {
+        "type": "string",
+        "format": "date",
+        "description": "Data do período da oferta (calendário), não horário."
+      },
+      "AcademicYear": {
+        "type": "integer",
+        "minimum": 2000,
+        "maximum": 2100,
+        "description": "Ano em que a turma foi ofertada."
+      },
+      "AcademicSemester": {
+        "type": "integer",
+        "enum": [
+          1,
+          2
+        ],
+        "description": "Semestre em que a turma foi ofertada (1 ou 2)."
+      },
+      "IsoDateTime": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "FilterOperatorValue": {
+        "type": "string",
+        "description": "Equals sem op, ou valor com `{op}`: `{neq}`, `{gt}`, `{gteq}`, `{lt}`, `{lteq}`, `{like}`.\n"
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "Caminho da requisição (requestURI)."
+          },
+          "code": {
+            "type": "string",
+            "description": "Código estável do FR (ex. FR-6)."
+          }
+        }
+      },
+      "ClassCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "courseId",
+          "startDate",
+          "endDate",
+          "year",
+          "semester",
+          "seats",
+          "roomId",
+          "professorId"
+        ],
+        "description": "status default `active` e studentIds default [] se omitidos. professorId é obrigatório. startDate ≤ endDate. year entre 2000 e 2100. semester 1 ou 2.",
+        "properties": {
+          "courseId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "startDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "endDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "year": {
+            "$ref": "#/components/schemas/AcademicYear"
+          },
+          "semester": {
+            "$ref": "#/components/schemas/AcademicSemester"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "roomId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "professorId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "studentIds": {
+            "$ref": "#/components/schemas/UuidArray",
+            "description": "Opcional. Omitido equivale a lista vazia."
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassStatus"
+          },
+          "modality": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      },
+      "ClassUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "courseId",
+          "startDate",
+          "endDate",
+          "year",
+          "semester",
+          "seats",
+          "roomId",
+          "professorId",
+          "status"
+        ],
+        "description": "Substituição total (PUT). studentIds omitido vira []. courseId, startDate, endDate, year e semester são imutáveis após a criação — alteração → 422.",
+        "properties": {
+          "courseId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "startDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "endDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "year": {
+            "$ref": "#/components/schemas/AcademicYear"
+          },
+          "semester": {
+            "$ref": "#/components/schemas/AcademicSemester"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "roomId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "professorId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "studentIds": {
+            "$ref": "#/components/schemas/UuidArray",
+            "description": "Opcional no PUT. Omitido equivale a lista vazia."
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassStatus"
+          },
+          "modality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          }
+        }
+      },
+      "ClassPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "description": "Atualização parcial. Não inclui courseId, startDate, endDate, year nem semester (imutáveis).",
+        "properties": {
+          "seats": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "roomId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "professorId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "studentIds": {
+            "$ref": "#/components/schemas/UuidArray"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassStatus"
+          },
+          "modality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          }
+        }
+      },
+      "Class": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "enabled",
+          "courseId",
+          "startDate",
+          "endDate",
+          "year",
+          "semester",
+          "seats",
+          "roomId",
+          "professorId",
+          "studentIds",
+          "status",
+          "averageRating"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "enabled": {
+            "type": "boolean",
+            "readOnly": true,
+            "default": true,
+            "description": "Exclusão lógica: true para registro ativo; false para registro excluído logicamente. Controlado pelo servidor."
+          },
+          "courseId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "startDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "endDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "year": {
+            "$ref": "#/components/schemas/AcademicYear"
+          },
+          "semester": {
+            "$ref": "#/components/schemas/AcademicSemester"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "roomId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "professorId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "studentIds": {
+            "$ref": "#/components/schemas/UuidArray"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassStatus"
+          },
+          "modality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "averageRating": {
+            "$ref": "#/components/schemas/AverageRating"
+          }
+        }
+      },
+      "ClassList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Class"
+        },
+        "description": "GET /api/v1/classes e POST /api/v1/classes/import devolvem um array JSON."
+      },
+      "ClassImportItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "courseId",
+          "startDate",
+          "endDate",
+          "year",
+          "semester",
+          "seats",
+          "roomId",
+          "professorId"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "courseId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "startDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "endDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "year": {
+            "$ref": "#/components/schemas/AcademicYear"
+          },
+          "semester": {
+            "$ref": "#/components/schemas/AcademicSemester"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "roomId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "professorId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "studentIds": {
+            "$ref": "#/components/schemas/UuidArray"
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClassStatus"
+          },
+          "modality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          }
+        }
+      },
+      "ClassImport": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ClassImportItem"
+        }
+      },
+      "OrdinalRatingInput": {
+        "type": "string",
+        "enum": [
+          "very_bad",
+          "bad",
+          "fair",
+          "good",
+          "very_good",
+          "muito_ruim",
+          "ruim",
+          "regular",
+          "bom",
+          "muito_bom"
+        ],
+        "description": "Valor aceito na escrita. Aliases em português são normalizados antes de persistir."
+      },
+      "ReviewCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "ordinalRating"
+            ]
+          },
+          {
+            "required": [
+              "notaOrdinal"
+            ]
+          }
+        ],
+        "properties": {
+          "ordinalRating": {
+            "$ref": "#/components/schemas/OrdinalRatingInput"
+          },
+          "notaOrdinal": {
+            "$ref": "#/components/schemas/OrdinalRatingInput",
+            "description": "Alias de ordinalRating. Se ambos vierem, ordinalRating prevalece."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "texto": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "Alias de text. Se ambos vierem, text prevalece."
+          }
+        }
+      },
+      "ReviewUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "ordinalRating"
+            ]
+          },
+          {
+            "required": [
+              "notaOrdinal"
+            ]
+          }
+        ],
+        "properties": {
+          "ordinalRating": {
+            "$ref": "#/components/schemas/OrdinalRatingInput"
+          },
+          "notaOrdinal": {
+            "$ref": "#/components/schemas/OrdinalRatingInput"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "texto": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "Alias de text. Se ambos vierem, text prevalece."
+          }
+        }
+      },
+      "ReviewPatch": {
+        "type": "object",
+        "additionalProperties": true,
+        "minProperties": 1,
+        "properties": {
+          "ordinalRating": {
+            "$ref": "#/components/schemas/OrdinalRatingInput"
+          },
+          "notaOrdinal": {
+            "$ref": "#/components/schemas/OrdinalRatingInput"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "texto": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "Null explícito em text ou texto apaga o texto."
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "enabled",
+          "classId",
+          "ordinalRating",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "enabled": {
+            "type": "boolean",
+            "readOnly": true,
+            "default": true,
+            "description": "Exclusão lógica: true para registro ativo; false para registro excluído logicamente. Controlado pelo servidor."
+          },
+          "classId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "ordinalRating": {
+            "$ref": "#/components/schemas/OrdinalRating"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/IsoDateTime"
+          }
+        },
+        "description": "Sem autorId no contrato público."
+      },
+      "ReviewList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Review"
+        },
+        "description": "GET de avaliações devolve um array. A média fica em Class.averageRating."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Requisição inválida",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Não autenticado",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Sem permissão / fora do roster",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Recurso não encontrado",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Regra de negócio (período inválido, Class encerrada, FR-1a RO)",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      }
+    }
+  }
+}

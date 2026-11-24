@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { HealthController } from './common/health/health.controller';
+import { HttpMetrics, MetricsController } from './common/health/http-metrics';
+import { CoursesModule } from './modules/courses/courses.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { StudentsModule } from './modules/students/students.module';
@@ -17,10 +19,12 @@ import { StudentsModule } from './modules/students/students.module';
 @Module({
 	imports: [
 		ConfigModule.forRoot({ isGlobal: true }),
+		CoursesModule,
 		ReservationsModule,
 		RoomsModule,
 		StudentsModule,
 	],
-	controllers: [HealthController],
+	controllers: [HealthController, MetricsController],
+	providers: [HttpMetrics],
 })
 export class AppModule {}

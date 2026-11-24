@@ -14,6 +14,8 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev && apk add --no-cache curl
 COPY --from=build /app/dist ./dist
+COPY openapi ./openapi
+USER node
 # PORT e as demais variáveis vêm do compose do base; o default casa com BFF_INTERNAL_API_PORT.
 EXPOSE 3001
 CMD ["node", "dist/main"]
