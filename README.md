@@ -6,7 +6,7 @@ BFF do Closed CRAS: a única porta que o frontend Angular enxerga. Os nove conte
 o browser (AD-6), então tudo que a UI precisa passa por aqui — como *proxy* (pass-through do CRUD
 de um contexto) ou como *read-model de composição* (leitura que junta contextos).
 
-> **Estado:** scaffold + módulos `rooms` (Grupo 08) e `students` (Grupo 04). Os outros contextos,
+> **Estado:** scaffold + módulos `reservations` (Grupo 03), `rooms` (Grupo 08) e `students` (Grupo 04). Os outros contextos,
 > o `modules/auth` e o `modules/ocupacao` ainda não existem. Veja [Quem faz o quê](#quem-faz-o-quê).
 
 ## Rodar
@@ -57,6 +57,7 @@ src/
       circuit-breaker.ts       # disjuntor por downstream (AD-10)
       downstream.service.ts    # timeout + retry idempotente + breaker
   modules/
+    reservations/              # Grupo 03
     rooms/                     # Grupo 08
     students/                  # Grupo 04
 test/
@@ -64,6 +65,7 @@ test/
   e2e/
     support/e2e-env.ts         # compartilhado: URLs, token, HTTP
     students.e2e-spec.ts       # Grupo 04 (modelo para <contexto>.e2e-spec.ts)
+    reservations.e2e-spec.ts   # Grupo 03
 ```
 
 ## Módulo `students` (Grupo 04)
@@ -91,6 +93,48 @@ Paths de `docs/open-api/bff.yaml` do repositório base, sob `/api/v1/students`:
 Variáveis: `STUDENTS_BASE_URL` (default `http://students:8080`) e `CLASSES_BASE_URL` (default
 `http://classes:8107`), mais os `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*` compartilhados.
 
+## Módulo `reservations` (Grupo 03)
+
+**Proxy puro** (o `bff.yaml` não pede composição para reservations), com os mesmos paths do contrato
+do contexto (`docs/open-api/grupo03-reservations-api.yaml` do base):
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/reservations` | GET, POST |
+| `/api/v1/reservations/ocupacao` | GET |
+| `/api/v1/reservations/{id}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/reservations/{id}/details` | GET, POST |
+| `/api/v1/reservations/{id}/details/{detailId}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/identidade/me` | GET |
+
+- **JWT validado no Keycloak** antes de chamar o backend: assinatura pelo JWKS do realm
+  (`${JWT_ISSUER}/protocol/openid-connect/certs`, chaves em cache, nova busca se o `kid` mudar),
+  `iss` no realm de `JWT_ISSUER` (qualquer host: o token pedido direto no Keycloak por
+  `localhost:8081` vem com outro host no `iss`, e a assinatura já prova a origem), `aud` contém `JWT_AUDIENCE`, não expirado. Sem token ou inválido → `401`
+  `problem+json`, sem chamar o backend. Keycloak fora do ar → `503`. Só `node:crypto`, sem lib nova.
+- O mesmo `Authorization: Bearer` segue para o backend. Query vai como chegou (`{gteq}`, `%25`…);
+  o PATCH (`application/merge-patch+json`) chega cru.
+- Resposta do backend sobe intacta: status, corpo, `Content-Type` e `Location`.
+- Backend fora do ar, timeout ou circuito aberto → `503` `problem+json` no formato do contrato do
+  reservations (sem `code`: lá `code` é só `FR-n`).
+
+Variáveis (todas já passadas pelo compose do base): `RESERVATIONS_BASE_URL`, `JWT_ISSUER`,
+`JWT_AUDIENCE`, mais os `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*` compartilhados. URL ou número
+inválido impede a subida com mensagem que cita a variável.
+
+E2E: `npm run test:e2e -- reservations` (stack do base no ar, com a massa padrão do reservations).
+Cobre 401, identidade, criar (corpo igual ao do backend direto), query `{like}`, ocorrência, 403 do
+domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
+
+Mudanças em código compartilhado feitas junto com este módulo:
+
+- `DownstreamService`: devolve também `location` (opcional) e manda
+  `Accept: application/json, application/problem+json` (só `application/json` dava `406` no
+  `DELETE` do reservations, que só declara `problem+json`).
+- `package.json`: `class-validator` e `class-transformer`, exigidos pelo `ValidationPipe` do
+  `main.ts`. Sem eles o BFF não subia no compose (o `ValidationPipe` derrubava a aplicação na
+  inicialização).
+
 ## Quem faz o quê
 
 Pelo PRD, **cada grupo pluga o próprio domínio no BFF** — e, no frontend, implementa a tela de um
@@ -98,6 +142,7 @@ domínio **alheio** (FR-28). Então aqui o Grupo 08 é dono de `modules/rooms/` 
 
 | Pasta | Dono |
 |---|---|
+| `modules/reservations/` | Grupo 03 |
 | `modules/rooms/` | Grupo 08 |
 | `modules/students/` | Grupo 04 |
 | `modules/classes/`, `modules/lessons/`, … | um grupo cada |

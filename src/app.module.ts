@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { HealthController } from './common/health/health.controller';
+import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { StudentsModule } from './modules/students/students.module';
 
@@ -16,6 +17,7 @@ import { StudentsModule } from './modules/students/students.module';
 @Module({
 	imports: [
 		ConfigModule.forRoot({ isGlobal: true }),
+		ReservationsModule,
 		RoomsModule,
 		StudentsModule,
 	],
