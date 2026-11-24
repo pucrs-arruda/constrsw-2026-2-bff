@@ -215,7 +215,7 @@ describe('Módulo reservations do BFF (Grupo 03)', () => {
 			const operacoes: Array<[string, string]> = [
 				['get', '/api/v1/reservations'],
 				['post', '/api/v1/reservations'],
-				['get', '/api/v1/reservations/ocupacao?data=2026-11-03&faixaId=C'],
+				['get', '/api/v1/reservations/ocupacao?data=2026-12-08&faixaId=C'],
 				['get', `/api/v1/reservations/${id}`],
 				['put', `/api/v1/reservations/${id}`],
 				['patch', `/api/v1/reservations/${id}`],
@@ -242,7 +242,7 @@ describe('Módulo reservations do BFF (Grupo 03)', () => {
 			backend.respond((_req, res) => {
 				res.writeHead(201, { 'content-type': 'application/json', location: '/api/v1/reservations/abc' }).end(criada);
 			});
-			const corpo = { lessonId: 'l1', data: '2026-11-07', faixaId: 'C', resourceIds: ['r1'] };
+			const corpo = { lessonId: 'l1', data: '2026-12-12', faixaId: 'C', resourceIds: ['r1'] };
 
 			const res = await request(app.getHttpServer()).post('/api/v1/reservations').set(auth()).send(corpo).expect(201);
 
@@ -254,7 +254,7 @@ describe('Módulo reservations do BFF (Grupo 03)', () => {
 		});
 
 		it('B3.3 query complexa chega sem ser decodificada', async () => {
-			const path = '/api/v1/reservations?data={gteq}2026-11-05&purpose={like}%25banca%25&faixaId=C';
+			const path = '/api/v1/reservations?data={gteq}2026-12-10&purpose={like}%25banca%25&faixaId=C';
 
 			await request(app.getHttpServer()).get(path).set(auth()).expect(200);
 

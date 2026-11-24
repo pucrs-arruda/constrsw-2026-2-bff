@@ -6,7 +6,7 @@ import { accessToken, http, urls, waitForBff } from './support/e2e-env';
  *
  * Usa a massa de demonstração do reservations (ligada por padrão na imagem) e os dados fixos dos
  * outros contextos (`CLIENTS_MODE=stub`):
- * - Lesson `…0004` (07/11, faixa C) do `professor@pucrs.br` e o Resource `…0001`;
+ * - Lesson `…0004` (12/12, faixa C) do `professor@pucrs.br` e o Resource `…0001`;
  * - a reserva `…0005` da massa, que é de outro professor (para o 403 da regra RN-02).
  *
  * Roteiro: identidade → cria a reserva pelo BFF → compara com o backend direto → ocorrência →
@@ -64,7 +64,7 @@ describe('BFF reservations — fim a fim', () => {
 	it('cria a reserva pelo BFF e o corpo é o mesmo do backend', async () => {
 		const created = await http('POST', `${bff}${RESERVATIONS}`, {
 			token,
-			body: { lessonId: LESSON, data: '2026-11-07', faixaId: 'C', resourceIds: [RESOURCE], purpose: 'E2E BFF' },
+			body: { lessonId: LESSON, data: '2026-12-12', faixaId: 'C', resourceIds: [RESOURCE], purpose: 'E2E BFF' },
 		});
 		expect(created.status).toBe(201);
 		reservationId = created.body.id;
@@ -77,7 +77,7 @@ describe('BFF reservations — fim a fim', () => {
 	});
 
 	it('query complexa chega intacta', async () => {
-		const res = await http('GET', `${bff}${RESERVATIONS}?purpose={like}%25E2E%20BFF%25&data={gteq}2026-11-07`, { token });
+		const res = await http('GET', `${bff}${RESERVATIONS}?purpose={like}%25E2E%20BFF%25&data={gteq}2026-12-12`, { token });
 
 		expect(res.status).toBe(200);
 		expect(res.body.map((r: { id: string }) => r.id)).toContain(reservationId);
