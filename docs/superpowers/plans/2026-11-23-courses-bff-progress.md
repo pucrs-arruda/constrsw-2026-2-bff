@@ -62,3 +62,4 @@ Publication: user subsequently authorized pushing grupo05 to the BFF remote. PR 
 - Verification: 112/112 local tests; 352 offline references/19 operations; Nest build; E2E TypeScript check; 28 normal live E2E scenarios plus the optional real-container failure scenario, all 29 passed. Classes was restored and healthy after the outage check.
 - Fresh read-only review found no Critical/Important issue. Corrected OAuth README details and stale fixture evidence identified by review.
 - User subsequently authorized opening the BFF PR after completion. Publish only bff/grupo05 and create a PR targeting BFF main; no base publication.
+- Opened BFF PR #4 after pushing b558690. GitHub reported a new main update, 3fbd63b, adding shared validation dependencies. Merged it and regenerated the conflicting lockfile while retaining Ajv and the new main dependencies. The post-resolution local suite again passed 112 tests, offline contract validation and Nest build.
