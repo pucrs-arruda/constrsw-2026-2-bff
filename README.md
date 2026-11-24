@@ -19,39 +19,46 @@ Escritas e GETs secundários preservam a resposta do domínio. O proxy mantém q
 corpo, status, Content-Type, Location e X-Total-Count. Cursos valida o payload de
 entrada; o BFF preserva também JSON vazio ou malformado para essa validação.
 
-## Rodar localmente
+## Como subir
+
+O BFF **só sobe pelo Compose da raiz** do repositório base. Não há execução
+fora do compose: variáveis vêm do `.env` da base e do bloco `bff` em
+`docker-compose.yml` (porta publicada: `BFF_EXTERNAL_API_PORT`, tipicamente 8180).
+
+```sh
+# na raiz do repositório base
+docker compose up -d --build bff
+```
+
+| Variável (no container) | Origem no base | Uso |
+|---|---|---|
+| `PORT` | `BFF_INTERNAL_API_PORT` | Porta HTTP do BFF |
+| `BFF_ORIGIN` | `BFF_ORIGIN` | Origem do frontend para CORS com credenciais |
+| `SESSION_COOKIE_NAME` | `BFF_SESSION_COOKIE_NAME` | Mesmo nome de cookie do OAuth |
+| `COURSES_BASE_URL` | `BFF_COURSES_BASE_URL` | Origem HTTP de Courses, sem `/api/v1` |
+| `CLASSES_BASE_URL` | `BFF_CLASSES_BASE_URL` | Origem HTTP de Classes, sem `/api/v1` |
+| `STUDENTS_BASE_URL` | `BFF_STUDENTS_BASE_URL` | Origem HTTP de Students |
+| `RESERVATIONS_BASE_URL` | `BFF_RESERVATIONS_BASE_URL` | Origem HTTP de Reservations |
+| `ROOMS_BASE_URL` | `BFF_ROOMS_BASE_URL` | Origem HTTP de Rooms |
+| `JWT_ISSUER` / `JWT_AUDIENCE` | `BFF_JWT_*` | Validação JWT (reservations) |
+| `BFF_HTTP_*` / `BFF_CIRCUIT_BREAKER_*` | mesmos nomes | Resiliência dos hops (AD-10) |
+| `BFF_INTERNAL_METRICS_PORT` | `BFF_INTERNAL_METRICS_PORT` | Listener adicional opcional de `/metrics` |
+
+O timeout aplica-se a cada tentativa. O limite total inclui tentativas e backoff
+exponencial limitado a 1000 ms. Respostas HTTP de erro são preservadas; HTTP 5xx
+conta como falha no circuito. Writes de Courses não são repetidas. Courses e
+Classes têm circuitos independentes. Redirecionamentos não são seguidos.
+
+## Testes no submodule
+
+Com a stack do compose no ar (quando o E2E exigir), em `backend/bff`:
 
 ```sh
 npm ci
 npm test -- --runInBand
 npm run test:contract
 npm run build
-npm run start:prod
 ```
-
-Copie `.env.example` para `.env` e ajuste os endereços dos serviços. A porta local
-padrão é 3001; a publicação prevista pelo Compose da base é 8180.
-
-| Variável | Uso |
-|---|---|
-| `PORT` | Porta HTTP do BFF; padrão 3001 |
-| `BFF_ORIGIN` | Origem exata do frontend para CORS com credenciais |
-| `SESSION_COOKIE_NAME` | Mesmo nome de cookie do OAuth; exemplo `closed_cras_session` |
-| `COURSES_BASE_URL` | Origem HTTP de Courses, sem `/api/v1` |
-| `CLASSES_BASE_URL` | Origem HTTP de Classes, sem `/api/v1` |
-| `ROOMS_BASE_URL` | Origem do proxy Rooms herdado |
-| `BFF_HTTP_TIMEOUT_MS` | Timeout por tentativa, incluindo leitura do corpo; padrão 3000 |
-| `BFF_HTTP_RETRIES` | Repetições por falha de rede; Courses/Classes somente GET/HEAD; padrão 2 |
-| `BFF_CIRCUIT_BREAKER_ERROR_THRESHOLD_PERCENTAGE` | Percentual de falhas; padrão 50 |
-| `BFF_CIRCUIT_BREAKER_RESET_TIMEOUT_MS` | Intervalo de recuperação; padrão 10000 |
-| `BFF_CIRCUIT_BREAKER_VOLUME_THRESHOLD` | Volume mínimo da janela; padrão 10 |
-| `BFF_CIRCUIT_BREAKER_ROLLING_WINDOW_MS` | Janela do circuito; padrão 10000 |
-| `BFF_INTERNAL_METRICS_PORT` | Listener adicional opcional de `/metrics` |
-
-O timeout aplica-se a cada tentativa. O limite total inclui tentativas e backoff
-exponencial limitado a 1000 ms. Respostas HTTP de erro são preservadas; HTTP 5xx
-conta como falha no circuito. Writes de Courses não são repetidas. Courses e
-Classes têm circuitos independentes. Redirecionamentos não são seguidos.
 
 ## OAuth e frontend
 

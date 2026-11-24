@@ -13,8 +13,8 @@ import { ROOMS_DOWNSTREAM, RoomsService } from './rooms.service';
  * declara para o serviço `bff` — `ROOMS_BASE_URL`, `BFF_HTTP_TIMEOUT_MS`, `BFF_HTTP_RETRIES` e os
  * cinco `BFF_CIRCUIT_BREAKER_*`. Nada de porta ou host escrito no código.
  *
- * Os defaults repetem os valores do `.env` do base, para o módulo subir fora do compose (teste,
- * `npm run start:dev`) sem exigir um ambiente completo.
+ * Os defaults repetem os valores do `.env` do base (rede Docker), usados só se a variável
+ * faltar — por exemplo em testes unitários.
  */
 @Module({
 	controllers: [RoomsController],

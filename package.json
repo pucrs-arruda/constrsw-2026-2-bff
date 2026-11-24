@@ -9,9 +9,6 @@
   },
   "scripts": {
     "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:watch": "npm test -- --watch",
     "test:cov": "npm test -- --coverage",

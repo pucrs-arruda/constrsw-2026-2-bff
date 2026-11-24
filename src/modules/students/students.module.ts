@@ -13,7 +13,8 @@ import { CLASSES_DOWNSTREAM, STUDENTS_DOWNSTREAM, StudentsService } from './stud
  * `classes`, consultado só para a composição de leitura T3 (classes do semestre em curso).
  *
  * Base URLs e parâmetros de resiliência vêm das variáveis do serviço `bff` no `docker-compose.yml`
- * do repositório base. Os defaults repetem o `.env` do base, para o módulo subir fora do compose.
+ * do repositório base. Os defaults repetem o `.env` do base (rede Docker), usados só se a
+ * variável faltar — por exemplo em testes unitários.
  */
 function downstream(config: ConfigService, name: string, baseUrlKey: string, fallback: string): DownstreamService {
 	return new DownstreamService({

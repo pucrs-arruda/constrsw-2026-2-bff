@@ -13,8 +13,8 @@ import { RESERVATIONS_DOWNSTREAM, ReservationsService } from './reservations.ser
  *
  * Só variáveis que o bloco `bff` do `docker-compose.yml` do base **já** passa:
  * `RESERVATIONS_BASE_URL`, `JWT_ISSUER`, `JWT_AUDIENCE`, `BFF_HTTP_TIMEOUT_MS`, `BFF_HTTP_RETRIES`
- * e os cinco `BFF_CIRCUIT_BREAKER_*`. Os defaults repetem o `.env` do base, como nos outros
- * módulos, para subir fora do compose. Valor inválido (URL ou número) impede a subida com uma
+ * e os cinco `BFF_CIRCUIT_BREAKER_*`. Os defaults repetem o `.env` do base (rede Docker),
+ * usados só se a variável faltar. Valor inválido (URL ou número) impede a subida com uma
  * mensagem que cita a variável.
  */
 @Module({
