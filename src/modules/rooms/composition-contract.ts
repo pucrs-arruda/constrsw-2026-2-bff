@@ -23,12 +23,14 @@ const roomSchema = {
 	additionalProperties: false,
 };
 
+// additionalProperties é intencionalmente omitido (aberto) em classSchema para acomodar
+// os demais atributos normativos retornados pelo serviço classes (courseId, seats, dates, etc.).
 const classSchema = {
 	type: 'object',
 	required: ['id', 'roomId', 'year', 'semester', 'enabled'],
 	properties: {
-		id: { type: 'string' },
-		roomId: { type: 'string' },
+		id: { type: 'string', format: 'uuid' },
+		roomId: { type: 'string', format: 'uuid' },
 		year: { type: 'integer' },
 		semester: { type: 'integer' },
 		enabled: { type: 'boolean' },

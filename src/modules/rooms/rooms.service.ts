@@ -119,12 +119,16 @@ export class RoomsService {
 		mode: RoomsCompose,
 	): Promise<RoomsForwardResponse> {
 		const payload: unknown = JSON.parse(response.body);
-		const roomsList: unknown[] =
-			mode === 'collection' && Array.isArray(payload) ? payload : mode === 'item' ? [payload] : [];
 
-		if (mode === 'collection' && !Array.isArray(payload)) {
-			throw new Error('Invalid Rooms collection payload');
+		if (mode === 'item' && !isObject(payload)) {
+			throw new Error('Invalid Rooms item payload: expected object');
 		}
+		if (mode === 'collection' && !Array.isArray(payload)) {
+			throw new Error('Invalid Rooms collection payload: expected array');
+		}
+
+		const roomsList: JsonResource[] =
+			mode === 'collection' ? (payload as JsonResource[]) : [payload as JsonResource];
 
 		if (!roomsList.every((r) => isObject(r) && validRoom(r))) {
 			throw new Error('Invalid Room payload');

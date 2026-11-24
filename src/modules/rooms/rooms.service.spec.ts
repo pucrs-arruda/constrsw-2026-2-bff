@@ -89,7 +89,7 @@ describe('RoomsService (unit)', () => {
 			status: 200,
 			body: JSON.stringify([
 				{
-					id: 'class-1',
+					id: 'c1111111-1111-4111-8111-111111111111',
 					roomId: validRoom.id,
 					year: 2026,
 					semester: 2,
@@ -97,14 +97,14 @@ describe('RoomsService (unit)', () => {
 					code: 'T-101',
 				},
 				{
-					id: 'class-other-room',
-					roomId: 'other-room-id',
+					id: 'c2222222-2222-4222-8222-222222222222',
+					roomId: 'd3333333-3333-4333-8333-333333333333',
 					year: 2026,
 					semester: 2,
 					enabled: true,
 				},
 				{
-					id: 'class-disabled',
+					id: 'c4444444-4444-4444-8444-444444444444',
 					roomId: validRoom.id,
 					year: 2026,
 					semester: 2,
@@ -128,7 +128,7 @@ describe('RoomsService (unit)', () => {
 		expect(data).toHaveLength(1);
 		expect(data[0].id).toBe(validRoom.id);
 		expect(data[0].classes).toHaveLength(1);
-		expect(data[0].classes[0].id).toBe('class-1');
+		expect(data[0].classes[0].id).toBe('c1111111-1111-4111-8111-111111111111');
 		expect(res.headers['cache-control']).toBe('no-store');
 	});
 
@@ -143,7 +143,7 @@ describe('RoomsService (unit)', () => {
 			status: 200,
 			body: JSON.stringify([
 				{
-					id: 'class-1',
+					id: 'c1111111-1111-4111-8111-111111111111',
 					roomId: validRoom.id,
 					year: 2026,
 					semester: 2,

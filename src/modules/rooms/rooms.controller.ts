@@ -79,7 +79,9 @@ export class RoomsController {
 	): Promise<void> {
 		let body: Buffer | string | undefined;
 
-		if (Buffer.isBuffer(request.body)) {
+		if (request.headers['content-length'] === '0') {
+			body = undefined;
+		} else if (Buffer.isBuffer(request.body)) {
 			body = request.body.length === 0 ? undefined : request.body;
 		} else if (request.body !== undefined && request.body !== null) {
 			body = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
@@ -87,8 +89,8 @@ export class RoomsController {
 
 		if (['GET', 'HEAD'].includes(request.method)) {
 			const hasBody =
-				body !== undefined &&
-				(Buffer.isBuffer(body) ? body.length > 0 : body.length > 0);
+				(Buffer.isBuffer(body) && body.length > 0) ||
+				(typeof body === 'string' && body.length > 0);
 			if (hasBody) {
 				throw invalidRequest('GET and HEAD do not accept a request body.');
 			}
