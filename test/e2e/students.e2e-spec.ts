@@ -4,29 +4,18 @@ import { randomUUID } from 'node:crypto';
 import { accessToken, currentSemester, http, setting, urls, waitForBff } from './support/e2e-env';
 
 /**
- * Teste fim a fim do módulo `students` do BFF (Grupo 04), contra a stack real do compose:
- * BFF → students + classes, com token do Keycloak.
+ * E2E completo do módulo `students` (Grupo 04) contra a stack real do compose.
  *
- * Roteiro:
- * 1. cria um estudante **pelo BFF** (proxy de POST);
- * 2. cria, direto no classes, três turmas: uma do semestre em curso com o estudante, uma do semestre
- *    em curso sem ele e uma de outro semestre com ele;
- * 3. confere que o GET do item e da coleção no BFF trazem `classes` só com a primeira turma e que o
- *    resto do corpo é o do students;
- * 4. confere o proxy (PATCH, matrículas, 404, 401) e, com `E2E_DOCKER=1`, o 503 `BFF-DEPENDENCY`
- *    parando o container do classes;
- * 5. apaga o que criou.
+ * Ciclo: cria estudante → composição T3 → PUT/PATCH → CRUD de enrollments → DELETE
+ * (e limpa turmas auxiliares). Volta ao estado inicial.
  *
- * Modelo para os outros grupos: copie como `test/e2e/<contexto>.e2e-spec.ts` e reaproveite
- * `support/e2e-env.ts`.
- *
- * Rodar (com a stack no ar): `npm run test:e2e`.
+ * Rodar: `npm run test:e2e -- students`
  */
 jest.setTimeout(120_000);
 
 const STUDENTS = '/api/v1/students';
 
-describe('BFF students — fim a fim', () => {
+describe('BFF students — fim a fim completo', () => {
 	let token: string;
 	let bff: string;
 	let studentsUrl: string;
@@ -42,6 +31,7 @@ describe('BFF students — fim a fim', () => {
 	};
 
 	let studentId: string;
+	let enrollmentId: string;
 	const createdClassIds: string[] = [];
 	let enrolledClassId: string;
 	let otherClassId: string;
@@ -101,14 +91,12 @@ describe('BFF students — fim a fim', () => {
 
 	it('GET /health responde UP sem token', async () => {
 		const res = await http('GET', `${bff}/health`);
-
 		expect(res.status).toBe(200);
 		expect(res.body).toEqual({ status: 'UP' });
 	});
 
 	it('POST pelo BFF devolve o estudante do students, sem classes', async () => {
 		const direct = await http('GET', `${studentsUrl}${STUDENTS}/${studentId}`, { token });
-
 		expect(direct.status).toBe(200);
 		expect(direct.body).toMatchObject(student);
 	});
@@ -129,7 +117,6 @@ describe('BFF students — fim a fim', () => {
 
 		it('não inclui turma do semestre em curso sem o estudante nem turma de outro semestre', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}/${studentId}`, { token });
-
 			const ids = classIds(res.body.classes);
 			expect(ids).not.toContain(otherClassId);
 			expect(ids).not.toContain(pastClassId);
@@ -154,13 +141,11 @@ describe('BFF students — fim a fim', () => {
 
 		it('repassa o 404 do students para id inexistente', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}/${randomUUID()}`, { token });
-
 			expect(res.status).toBe(404);
 		});
 
 		it('repassa o 401 do students sem token', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}/${studentId}`);
-
 			expect(res.status).toBe(401);
 		});
 	});
@@ -172,7 +157,6 @@ describe('BFF students — fim a fim', () => {
 				`${bff}${STUDENTS}?registration_number=${student.registration_number}`,
 				{ token },
 			);
-
 			expect(res.status).toBe(200);
 			expect(res.body).toHaveLength(1);
 			expect(res.body[0].id).toBe(studentId);
@@ -181,7 +165,6 @@ describe('BFF students — fim a fim', () => {
 
 		it('todo item da lista sem filtro tem classes', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}`, { token });
-
 			expect(res.status).toBe(200);
 			for (const item of res.body) {
 				expect(item.classes).toEqual(expect.any(Array));
@@ -190,32 +173,115 @@ describe('BFF students — fim a fim', () => {
 
 		it('repassa o 401 do students sem token', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}`);
-
 			expect(res.status).toBe(401);
 		});
 	});
 
-	describe('proxy (sem classes)', () => {
+	describe('proxy do estudante (PUT/PATCH)', () => {
+		it('PUT substitui o estudante e devolve o corpo sem classes', async () => {
+			const replaced = {
+				registration_number: student.registration_number,
+				name: `${student.name} substituído`,
+				email: student.email,
+				birth_date: student.birth_date,
+				phone: '+5551999990000',
+			};
+			const res = await http('PUT', `${bff}${STUDENTS}/${studentId}`, { token, body: replaced });
+			expect(res.status).toBe(200);
+			expect(res.body).toMatchObject(replaced);
+			expect(res.body).not.toHaveProperty('classes');
+		});
+
 		it('PATCH altera pelo students e devolve o corpo sem classes', async () => {
 			const res = await http('PATCH', `${bff}${STUDENTS}/${studentId}`, {
 				token,
 				body: { name: `${student.name} alterado` },
 			});
-
 			expect(res.status).toBe(200);
 			expect(res.body.name).toBe(`${student.name} alterado`);
 			expect(res.body).not.toHaveProperty('classes');
 		});
+	});
 
-		it('GET de matrículas é proxy e não compõe', async () => {
+	describe('proxy de enrollments (CRUD completo)', () => {
+		const enrollment = {
+			course_code: `E2E${stamp.slice(-4)}`,
+			course_name: 'Engenharia de Software E2E',
+			admission_term: '2024/1',
+			status: 'active',
+			start_date: '2024-03-04',
+			end_date: null as string | null,
+		};
+
+		it('POST cria vínculo acadêmico', async () => {
+			const res = await http('POST', `${bff}${STUDENTS}/${studentId}/enrollments`, {
+				token,
+				body: enrollment,
+			});
+			expect(res.status).toBe(201);
+			expect(res.body).toMatchObject({
+				course_code: enrollment.course_code,
+				course_name: enrollment.course_name,
+				status: 'active',
+			});
+			enrollmentId = res.body.id;
+			expect(enrollmentId).toEqual(expect.any(String));
+		});
+
+		it('GET coleção lista o vínculo criado', async () => {
 			const res = await http('GET', `${bff}${STUDENTS}/${studentId}/enrollments`, { token });
-
 			expect(res.status).toBe(200);
 			expect(res.body).toEqual(expect.any(Array));
+			expect(res.body.map((item: { id: string }) => item.id)).toContain(enrollmentId);
+		});
+
+		it('GET item coincide com o students direto', async () => {
+			const suffix = `${STUDENTS}/${studentId}/enrollments/${enrollmentId}`;
+			const [viaBff, direct] = await Promise.all([
+				http('GET', `${bff}${suffix}`, { token }),
+				http('GET', `${studentsUrl}${suffix}`, { token }),
+			]);
+			expect(viaBff.status).toBe(200);
+			expect(viaBff.body).toEqual(direct.body);
+		});
+
+		it('PUT substitui o vínculo', async () => {
+			const replaced = {
+				...enrollment,
+				course_name: 'Engenharia de Software E2E substituído',
+				status: 'suspended',
+			};
+			const res = await http('PUT', `${bff}${STUDENTS}/${studentId}/enrollments/${enrollmentId}`, {
+				token,
+				body: replaced,
+			});
+			expect(res.status).toBe(200);
+			expect(res.body.course_name).toBe(replaced.course_name);
+			expect(res.body.status).toBe('suspended');
+		});
+
+		it('PATCH altera parcialmente o vínculo', async () => {
+			const res = await http('PATCH', `${bff}${STUDENTS}/${studentId}/enrollments/${enrollmentId}`, {
+				token,
+				body: { status: 'active' },
+			});
+			expect(res.status).toBe(200);
+			expect(res.body.status).toBe('active');
+		});
+
+		it('DELETE remove o vínculo e o GET passa a 404', async () => {
+			const removed = await http('DELETE', `${bff}${STUDENTS}/${studentId}/enrollments/${enrollmentId}`, {
+				token,
+			});
+			expect(removed.status).toBe(204);
+
+			const after = await http('GET', `${bff}${STUDENTS}/${studentId}/enrollments/${enrollmentId}`, {
+				token,
+			});
+			expect(after.status).toBe(404);
 		});
 	});
 
-	// Para o container do classes: só com E2E_DOCKER=1, porque mexe na stack local.
 	const withDocker = setting('E2E_DOCKER', '0') === '1' ? it : it.skip;
 
 	withDocker('responde 503 BFF-DEPENDENCY quando o classes está fora, sem devolver o estudante', async () => {
@@ -223,7 +289,6 @@ describe('BFF students — fim a fim', () => {
 		execFileSync('docker', ['stop', container], { stdio: 'ignore' });
 		try {
 			const res = await http('GET', `${bff}${STUDENTS}/${studentId}`, { token });
-
 			expect(res.status).toBe(503);
 			expect(res.contentType).toContain('application/problem+json');
 			expect(res.body.code).toBe('BFF-DEPENDENCY');
@@ -235,7 +300,6 @@ describe('BFF students — fim a fim', () => {
 		}
 	});
 
-	/** Depois do `docker start`, espera o classes responder de novo para a limpeza funcionar. */
 	async function waitForClasses(): Promise<void> {
 		const deadline = Date.now() + 90_000;
 		while (Date.now() < deadline) {

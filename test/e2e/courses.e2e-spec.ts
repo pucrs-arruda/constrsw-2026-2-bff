@@ -34,7 +34,7 @@ describe('BFF Courses — shared end-to-end runner', () => {
 	const call = (method: string, suffix: string, body?: unknown) => http(method, `${bff}${suffix}`, { token, body });
 
 	beforeAll(async () => {
-		bff = urls.bff(); coursesUrl = urls.context('courses', '8085'); classesUrl = urls.context('classes', '8182');
+		bff = urls.bff(); coursesUrl = urls.context('courses', '8183'); classesUrl = urls.context('classes', '8182');
 		await waitForBff();
 		await waitForDomains();
 		// Courses introspects tokens through OAuth. Obtain the token through that
