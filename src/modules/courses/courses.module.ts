@@ -32,7 +32,7 @@ function downstream(provider: string, name: string, variable: string, fallback: 
 	controllers: [CoursesController],
 	providers: [CoursesService, { provide: COURSES_CLOCK, useValue: () => new Date() },
 		downstream(COURSES_DOWNSTREAM, 'courses', 'COURSES_BASE_URL', 'http://courses:8080'),
-		downstream(CLASSES_DOWNSTREAM, 'classes', 'CLASSES_BASE_URL', 'http://classes:8080'),
+		downstream(CLASSES_DOWNSTREAM, 'classes', 'CLASSES_BASE_URL', 'http://classes:8107'),
 	],
 })
 export class CoursesModule {}
