@@ -1,0 +1,1647 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ConstrSW Resources API",
+    "version": "1.0.0",
+    "description": "Closed CRAS resources context. Resource 1-N Occurrence.\n\nA Resource is one physical reservable unit; active is the reservation gate.\nenabled is the logical-deletion flag: DELETE sets it to false and the API\nstops returning the row while its history remains stored.\nAn Occurrence moves OPEN -> RESOLVED once. reportedBy and resolvedBy are the\naudit actors taken from the JWT (employeeId claim, with a lab fallback), and\nstatus/timestamps are never client-supplied.\n\nSimple filters are plain equality: ?type=PROJECTOR&active=true.\nComplex filters prefix the value with an operator between braces:\n?status={neq}RESOLVED&createdAt={gteq}2026-11-01T00:00:00Z.\nSupported operators: neq, gt, gteq, lt, lteq, like. The readable form puts\nthe operator as a parameter-name suffix (name.like, createdAt.gteq,\nstatus.neq) and needs no braces. The required braces form is also accepted\n({like}, {gteq}); when using braces, encode them as %7B / %7D.\n",
+    "contact": {
+      "name": "Closed CRAS — resources context"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin as this documentation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Anonymous operational probes."
+    },
+    {
+      "name": "Resources",
+      "description": "Resource master data."
+    },
+    {
+      "name": "Occurrences",
+      "description": "Occurrence history for one resource."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "getHealth",
+        "summary": "Liveness probe with a database check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service and database are reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "service": "resources",
+                      "database": "up"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is running but the database is not reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                },
+                "examples": {
+                  "degraded": {
+                    "value": {
+                      "status": "degraded",
+                      "service": "resources",
+                      "database": "down"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "getLiveness",
+        "summary": "Process liveness probe",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process answers HTTP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Live"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "getReadiness",
+        "summary": "Readiness probe",
+        "description": "Checks PostgreSQL and the Keycloak JWKS. With AUTH_DISABLED=true the identity check is skipped.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Critical dependencies are ready.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "At least one critical dependency is down.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "listResources",
+        "summary": "List resources",
+        "description": "Returns every matching resource as a JSON array. Filters combine\nwith AND and order is code ascending. There is no pagination. By default\nonly enabled=true rows are returned; pass enabled=false to list\nlogically deleted resources.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceCodeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceNameFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceTypeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceActiveFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceEnabledFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceTagFilter"
+          },
+          {
+            "$ref": "#/components/parameters/CreatedAtFilter"
+          },
+          {
+            "$ref": "#/components/parameters/UpdatedAtFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching resources.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "createResource",
+        "summary": "Create a resource",
+        "description": "Creates one physical reservable unit. code is required, unique and\nimmutable after creation. active defaults to true and tags default to [].\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Resource created.",
+            "headers": {
+              "Location": {
+                "$ref": "#/components/headers/Location"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ResourceId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "getResource",
+        "summary": "Read a resource aggregate",
+        "description": "Returns the resource and all its occurrences, newest first.",
+        "responses": {
+          "200": {
+            "description": "Resource aggregate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceAggregate"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "replaceResource",
+        "summary": "Replace a resource",
+        "description": "Total update of name, type, active and tags. code is immutable and must\nmatch the stored code.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated resource aggregate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceAggregate"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "updateResource",
+        "summary": "Partially update a resource",
+        "description": "Partial update of name, type, active and tags. tags replaces the whole\nset. code and unknown fields are refused with 422.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated resource aggregate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceAggregate"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "deleteResource",
+        "summary": "Delete a resource",
+        "description": "Logical delete: sets enabled=false on the resource and its occurrences in\none transaction. The rows and their history are retained and the API no\nlonger returns them. This is distinct from active, the reservation gate.\n",
+        "responses": {
+          "204": {
+            "description": "Resource deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}/occurrences": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ResourceId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "createOccurrence",
+        "summary": "Record an occurrence",
+        "description": "Creates an OPEN occurrence for the resource. reportedBy is server-set\nfrom the token; status/timestamps are server-set; priority defaults to\nMEDIUM; resolution is not accepted on create.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccurrenceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Occurrence created.",
+            "headers": {
+              "Location": {
+                "$ref": "#/components/headers/Location"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Occurrence"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "listOccurrences",
+        "summary": "List occurrences of a resource",
+        "description": "Newest first. Simple and complex filters combine with AND. By default\nonly enabled=true rows are returned; pass enabled=false to list\nlogically deleted occurrences.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OccurrenceDescriptionFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OccurrenceTypeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OccurrencePriorityFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OccurrenceStatusFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OccurrenceEnabledFilter"
+          },
+          {
+            "$ref": "#/components/parameters/OccurrenceResolutionFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ReportedByFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResolvedByFilter"
+          },
+          {
+            "$ref": "#/components/parameters/CreatedAtFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ResolvedAtFilter"
+          },
+          {
+            "$ref": "#/components/parameters/UpdatedAtFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching occurrences.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}/occurrences/{occurrenceId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ResourceId"
+        },
+        {
+          "$ref": "#/components/parameters/OccurrenceId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "getOccurrence",
+        "summary": "Read one occurrence of a resource",
+        "responses": {
+          "200": {
+            "description": "Occurrence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Occurrence"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "replaceOccurrence",
+        "summary": "Replace an OPEN occurrence",
+        "description": "Total update of description, type and priority. Supplying resolution\nperforms the one-way OPEN -> RESOLVED transition. A RESOLVED occurrence\nis terminal and returns 409.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccurrencePut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated occurrence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Occurrence"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "updateOccurrence",
+        "summary": "Partially update or resolve an occurrence",
+        "description": "Partial update of description, type, priority and resolution. Supplying\nresolution resolves the occurrence and sets resolvedBy/resolvedAt\nserver-side. A second resolve returns 409.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OccurrencePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated occurrence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Occurrence"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/MalformedRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Occurrences"
+        ],
+        "operationId": "deleteOccurrence",
+        "summary": "Delete an occurrence",
+        "description": "Logical delete: sets enabled=false. The row and its history are retained\nand the API no longer returns it.\n",
+        "responses": {
+          "204": {
+            "description": "Occurrence deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Keycloak access token (RS256, aud=oauth)."
+      }
+    },
+    "parameters": {
+      "ResourceId": {
+        "name": "resourceId",
+        "in": "path",
+        "required": true,
+        "description": "Resource UUID.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "OccurrenceId": {
+        "name": "occurrenceId",
+        "in": "path",
+        "required": true,
+        "description": "Occurrence UUID.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ResourceCodeFilter": {
+        "name": "code",
+        "in": "query",
+        "required": false,
+        "description": "Code equality, or a complex operator prefix.",
+        "schema": {
+          "type": "string"
+        },
+        "examples": {
+          "simple": {
+            "value": "PROJ-01"
+          },
+          "complex": {
+            "value": "{like}PROJ-%"
+          }
+        }
+      },
+      "ResourceNameFilter": {
+        "name": "name",
+        "in": "query",
+        "required": false,
+        "description": "Name equality, LIKE, or an ordering operator.",
+        "schema": {
+          "type": "string"
+        },
+        "examples": {
+          "like": {
+            "value": "{like}%Projetor%"
+          }
+        }
+      },
+      "ResourceTypeFilter": {
+        "name": "type",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/ResourceType"
+        },
+        "examples": {
+          "notEqual": {
+            "value": "{neq}HEALTH_KIT"
+          }
+        }
+      },
+      "ResourceActiveFilter": {
+        "name": "active",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "ResourceEnabledFilter": {
+        "name": "enabled",
+        "in": "query",
+        "required": false,
+        "description": "Logical-deletion flag. Defaults to true when omitted, so deleted rows\nare hidden. Use enabled=false to list soft-deleted resources.\n",
+        "schema": {
+          "type": "boolean"
+        },
+        "examples": {
+          "deleted": {
+            "value": false
+          }
+        }
+      },
+      "ResourceTagFilter": {
+        "name": "tag",
+        "in": "query",
+        "required": false,
+        "description": "Exact tag match after trimming and lowercasing.",
+        "schema": {
+          "type": "string"
+        },
+        "examples": {
+          "simple": {
+            "value": "av"
+          }
+        }
+      },
+      "OccurrenceDescriptionFilter": {
+        "name": "description",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "examples": {
+          "like": {
+            "value": "{like}%lampada%"
+          }
+        }
+      },
+      "OccurrenceTypeFilter": {
+        "name": "type",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/OccurrenceType"
+        }
+      },
+      "OccurrencePriorityFilter": {
+        "name": "priority",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/OccurrencePriority"
+        },
+        "examples": {
+          "order": {
+            "value": "{gteq}MEDIUM"
+          }
+        }
+      },
+      "OccurrenceStatusFilter": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/OccurrenceStatus"
+        },
+        "examples": {
+          "notEqual": {
+            "value": "{neq}RESOLVED"
+          }
+        }
+      },
+      "OccurrenceEnabledFilter": {
+        "name": "enabled",
+        "in": "query",
+        "required": false,
+        "description": "Logical-deletion flag. Defaults to true when omitted, so deleted rows\nare hidden. Use enabled=false to list soft-deleted occurrences.\n",
+        "schema": {
+          "type": "boolean"
+        },
+        "examples": {
+          "deleted": {
+            "value": false
+          }
+        }
+      },
+      "OccurrenceResolutionFilter": {
+        "name": "resolution",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "examples": {
+          "like": {
+            "value": "{like}%trocado%"
+          }
+        }
+      },
+      "ReportedByFilter": {
+        "name": "reportedBy",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ResolvedByFilter": {
+        "name": "resolvedBy",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "CreatedAtFilter": {
+        "name": "createdAt",
+        "in": "query",
+        "required": false,
+        "description": "RFC 3339 date-time with an optional operator prefix.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "examples": {
+          "greaterOrEqual": {
+            "value": "{gteq}2026-11-01T00:00:00Z"
+          }
+        }
+      },
+      "UpdatedAtFilter": {
+        "name": "updatedAt",
+        "in": "query",
+        "required": false,
+        "description": "RFC 3339 date-time with an optional operator prefix.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "examples": {
+          "lessThan": {
+            "value": "{lt}2027-01-01T00:00:00Z"
+          }
+        }
+      },
+      "ResolvedAtFilter": {
+        "name": "resolvedAt",
+        "in": "query",
+        "required": false,
+        "description": "RFC 3339 date-time with an optional operator prefix.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "headers": {
+      "Location": {
+        "description": "Path-only location of the created resource or occurrence.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "/api/v1/resources/6f1c2d3e-4a5b-4c6d-8e7f-901234567890"
+      }
+    },
+    "responses": {
+      "MalformedRequest": {
+        "description": "The JSON body could not be parsed.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid or expired bearer token.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The token lacks a configured read/write role.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource or occurrence was not found.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Duplicate code or a resolved occurrence that is terminal.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "A request body was sent with a non-JSON content type.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Validation": {
+        "description": "Invalid or unknown field, enum value or query operator.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "DependencyUnavailable": {
+        "description": "PostgreSQL or the identity provider is unavailable.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ResourceType": {
+        "type": "string",
+        "enum": [
+          "PROJECTOR",
+          "HEALTH_KIT",
+          "COMPUTER",
+          "NOTEBOOK",
+          "CAMERA",
+          "MICROPHONE",
+          "DISPLAY",
+          "CABLE",
+          "ADAPTER"
+        ],
+        "description": "Resource kind. Descriptive only; active is the reservation gate. ROOM is not a resource type and there is no OTHER fallback.\n"
+      },
+      "OccurrenceType": {
+        "type": "string",
+        "enum": [
+          "MALFUNCTION",
+          "DAMAGE",
+          "MISSING",
+          "OTHER"
+        ]
+      },
+      "OccurrencePriority": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH"
+        ]
+      },
+      "OccurrenceStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "RESOLVED"
+        ]
+      },
+      "Resource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "code",
+          "name",
+          "type",
+          "active",
+          "enabled",
+          "tags",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[A-Z0-9]+(-[A-Z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Logical-deletion flag; false means the row is hidden from the API."
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ResourceCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$",
+            "description": "Trimmed and uppercased before storage."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 30
+            }
+          }
+        }
+      },
+      "ResourcePut": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "name",
+          "type"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$",
+            "description": "Must equal the stored code; code is immutable."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "default": [],
+            "items": {
+              "type": "string",
+              "maxLength": 30
+            }
+          }
+        }
+      },
+      "ResourcePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 30
+            }
+          }
+        }
+      },
+      "Occurrence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "resourceId",
+          "description",
+          "type",
+          "priority",
+          "status",
+          "enabled",
+          "resolution",
+          "reportedBy",
+          "resolvedBy",
+          "createdAt",
+          "resolvedAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/OccurrenceType"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/OccurrencePriority"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OccurrenceStatus"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Logical-deletion flag; false means the row is hidden from the API."
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reportedBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resolvedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OccurrenceCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "type"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "$ref": "#/components/schemas/OccurrenceType"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/OccurrencePriority",
+            "default": "MEDIUM"
+          }
+        }
+      },
+      "OccurrencePut": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "type"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "$ref": "#/components/schemas/OccurrenceType"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/OccurrencePriority",
+            "default": "MEDIUM"
+          },
+          "resolution": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Supplying resolution resolves the occurrence."
+          }
+        }
+      },
+      "OccurrencePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "$ref": "#/components/schemas/OccurrenceType"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/OccurrencePriority"
+          },
+          "resolution": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Supplying resolution resolves the occurrence."
+          }
+        }
+      },
+      "ResourceList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Resource"
+        }
+      },
+      "OccurrenceList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Occurrence"
+        }
+      },
+      "ResourceAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "code",
+          "name",
+          "type",
+          "active",
+          "enabled",
+          "tags",
+          "createdAt",
+          "updatedAt",
+          "occurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[A-Z0-9]+(-[A-Z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Logical-deletion flag; false means the row is hidden from the API."
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurrences": {
+            "$ref": "#/components/schemas/OccurrenceList"
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code",
+          "instance"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "service",
+          "database"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "const": "resources"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ]
+          }
+        }
+      },
+      "Live": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "service"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "service": {
+            "type": "string",
+            "const": "resources"
+          }
+        }
+      },
+      "Readiness": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "service",
+          "database",
+          "identity"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "const": "resources"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ]
+          },
+          "identity": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down",
+              "skipped"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

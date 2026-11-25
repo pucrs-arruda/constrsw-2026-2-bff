@@ -40,6 +40,7 @@ docker compose up -d --build bff
 | `STUDENTS_BASE_URL` | `BFF_STUDENTS_BASE_URL` | Origem HTTP de Students |
 | `RESERVATIONS_BASE_URL` | `BFF_RESERVATIONS_BASE_URL` | Origem HTTP de Reservations |
 | `ROOMS_BASE_URL` | `BFF_ROOMS_BASE_URL` | Origem HTTP de Rooms |
+| `RESOURCES_BASE_URL` | `BFF_RESOURCES_BASE_URL` | Origem HTTP de Resources, sem `/api/v1` |
 | `JWT_ISSUER` / `JWT_AUDIENCE` | `BFF_JWT_*` | Validação JWT (reservations) |
 | `BFF_HTTP_*` / `BFF_CIRCUIT_BREAKER_*` | mesmos nomes | Resiliência dos hops (AD-10) |
 | `BFF_INTERNAL_METRICS_PORT` | `BFF_INTERNAL_METRICS_PORT` | Listener adicional opcional de `/metrics` |
@@ -116,6 +117,69 @@ E2E: `npm run test:e2e -- reservations` (stack do base no ar, com a massa padrã
 Cobre 401, identidade, criar (corpo igual ao do backend direto), query `{like}`, ocorrência, 403 do
 domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
 
+## Módulo `resources` (UX-S3)
+
+Rotas browser-facing publicadas sob `/api/v1/resources` (o mesmo prefixo do domínio e do
+`docs/open-api/bff.yaml`):
+
+| Rota | Método | Comportamento |
+|---|---|---|
+| `/api/v1/resources` | GET | Lista o domínio, responde array puro e acrescenta `openOccurrenceCount` + `reservations` a cada item |
+| `/api/v1/resources` | POST | Proxy da criação; `Location` em `/api/v1/resources/{id}` |
+| `/api/v1/resources/{resourceId}` | GET | Agregado com `openOccurrenceCount`, `reservations` e `occurrences` em array puro |
+| `/api/v1/resources/{resourceId}` | PATCH | Proxy da atualização; mesmo agregado composto |
+| `/api/v1/resources/{resourceId}/occurrences` | POST | Proxy do registro; `Location` em `/api/v1/resources/...` |
+| `/api/v1/resources/{resourceId}/occurrences/{occurrenceId}` | PATCH | Proxy da resolução (`{resolution}`) |
+
+- `openOccurrenceCount` é o número de ocorrências com status `OPEN`, calculado no read time. Não é
+  persistido e não existe no contrato do domínio. A lista faz uma leitura de agregado por recurso
+  (N+1); se qualquer leitura de detalhe falhar, a resposta é 503, sem lista parcial.
+- `reservations` é composição somente leitura do contexto reservations: reservas futuras cujo
+  `resourceIds` contém o recurso. Futuro = início da faixa (`data` + cânone A–E/F–N/P) posterior ao
+  agora em `America/Sao_Paulo`; `status` não é filtrado. Lista lê as reservas uma vez; detalhe
+  consulta por `resourceId`. Falha da composição → 503 sem payload parcial.
+- `enabled` é flag de exclusão lógica do domínio e é removida de recursos e ocorrências. As
+  coleções sobem como array puro; nenhum campo de roster, Student, availability, occupancy ou
+  inventory-item é acrescentado.
+- Sem sessão (cookie ou `Authorization: Bearer`), toda rota responde 401 `problem+json`
+  (`AUTH_UNAUTHENTICATED`/`MISSING_TOKEN`) sem chamar o domínio. Recusas do domínio (403, 404, 409,
+  422) passam intactas; o BFF não aplica papel nem regra de ocorrência.
+- O `Bearer` do usuário é encaminhado; `Origin` e cookie nunca são repassados ao domínio.
+- Domínio fora do ar, timeout ou circuito aberto → 503 `problem+json`
+  `DEPENDENCY_UNAVAILABLE` com `reason` `RESOURCES_UPSTREAM_UNAVAILABLE` (um 503 do próprio domínio
+  continua sendo repassado como veio).
+
+Configuração: `RESOURCES_BASE_URL` (default `http://resources:8106`),
+`RESERVATIONS_BASE_URL` (default `http://reservations:8109`) mais os `BFF_HTTP_*` e
+`BFF_CIRCUIT_BREAKER_*` compartilhados. A lista repassa somente os filtros documentados (`code`,
+`type`, `active`, `tag`). O `docker-compose.yml` da base **não** define um serviço `bff`; inclua
+estas chaves no serviço `bff` do seu override (ou no bloco que você usa para subir o BFF):
+
+```yaml
+services:
+  bff:
+    environment:
+      RESOURCES_BASE_URL: http://resources:8106
+      RESERVATIONS_BASE_URL: http://reservations:8109
+      # ou: RESOURCES_BASE_URL: ${BFF_RESOURCES_BASE_URL}
+      #     RESERVATIONS_BASE_URL: ${BFF_RESERVATIONS_BASE_URL}
+    depends_on:
+      resources: { condition: service_healthy }
+      reservations: { condition: service_healthy }
+      oauth: { condition: service_healthy }
+```
+
+Se preferir a convenção do base, defina `BFF_RESOURCES_BASE_URL=http://resources:8106` e
+`BFF_RESERVATIONS_BASE_URL=http://reservations:8109` no `.env` e use
+`RESOURCES_BASE_URL: ${BFF_RESOURCES_BASE_URL}` / `RESERVATIONS_BASE_URL:
+${BFF_RESERVATIONS_BASE_URL}`. O cookie de sessão continua vindo de `SESSION_COOKIE_NAME` (default
+`closed_cras_session`); `cras_session` no contrato é placeholder do módulo de auth.
+
+Testes: `npm test` cobre o proxy/read-model com fronteira HTTP real e o contrato offline;
+`npm run test:e2e:resources` exige a stack do compose com resources, OAuth/Keycloak e o BFF.
+`E2E_DOCKER=1` ativa o cenário de resources parado. O cenário de papel somente leitura roda quando
+`E2E_READONLY_USERNAME` (e opcionalmente `E2E_READONLY_PASSWORD`) está definido.
+
 ## Quem faz o quê
 
 | Pasta | Dono |
@@ -124,6 +188,7 @@ domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
 | `src/modules/rooms/` | Grupo 08 |
 | `src/modules/students/` | Grupo 04 |
 | `src/modules/courses/` | Grupo 05 |
+| `src/modules/resources/` | resources (UX-S3) |
 | `src/modules/classes/`, `src/modules/lessons/`, … | um grupo cada |
 | `src/modules/ocupacao/` | FR-29, dono único a definir |
 | `common/` | compartilhado |
@@ -202,10 +267,12 @@ Rooms, Professors ou outros microsserviços de grupos alheios.
 
 ## Contrato, observabilidade e integração dos grupos
 
-`openapi/openapi.json` contém health e as 19 operações de Courses; seus contratos
-de domínio estão copiados localmente, com referências verificáveis sem rede.
-CourseView corrige a incompatibilidade de `allOf` com o Course fechado do
-contrato original. Respostas que serão compostas são validadas com Ajv.
+`openapi/openapi.json` contém health, as 19 operações de Courses e as rotas browser
+de Resources (`/api/v1/resources`, servidor de contrato `http://localhost:8088`); os
+contratos de domínio, incluindo `domains/resources.openapi.json`, estão copiados
+localmente, com referências verificáveis sem rede. CourseView corrige a
+incompatibilidade de `allOf` com o Course fechado do contrato original. Respostas
+que serão compostas (Courses e o agregado/lista de Resources) são validadas com Ajv.
 
 `GET /health` é anônimo. `GET /metrics` expõe `bff_http_requests_total` com método,
 rota parametrizada e status, além de uptime. Se configurado, o listener adicional
