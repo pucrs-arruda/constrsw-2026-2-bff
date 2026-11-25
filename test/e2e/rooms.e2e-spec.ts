@@ -18,6 +18,7 @@ describe('BFF rooms — fim a fim', () => {
 	let bff: string;
 	let classesUrl: string;
 	let roomId: string;
+	let secondRoomId: string;
 	let classId: string;
 	let featureId: string;
 
@@ -78,7 +79,7 @@ describe('BFF rooms — fim a fim', () => {
 
 	it('POST /rooms cria salas e prepara uma turma vinculada', async () => {
 		roomId = await createRoom(room);
-		await createRoom(secondRoom);
+		secondRoomId = await createRoom(secondRoom);
 		const { year, semester } = currentSemester();
 		const [start, end] = semester === 1 ? ['03-01', '07-15'] : ['08-01', '12-15'];
 		const result = await http('POST', `${classesUrl}/api/v1/classes`, {
@@ -137,6 +138,12 @@ describe('BFF rooms — fim a fim', () => {
 		expect(res.body.classes).toEqual([expect.objectContaining({ id: classId, roomId })]);
 	});
 
+	it('GET /rooms/{id} de sala sem turma no semestre devolve classes vazio', async () => {
+		const res = await api('GET', `${path}/${secondRoomId}`);
+		expect(res.status).toBe(200);
+		expect(res.body.classes).toEqual([]);
+	});
+
 	it('PUT /rooms/{id} substitui a sala', async () => {
 		const body = { ...room, capacity: 50, name: 'Sala substituída' };
 		const res = await api('PUT', roomPath(), body);
@@ -192,7 +199,14 @@ describe('BFF rooms — fim a fim', () => {
 		expect(res.status).toBe(204);
 		expect(res.body).toBeUndefined();
 		created.features.delete(bff + featurePath());
+		// Exclusão lógica: some dos GET e não aceita PUT, PATCH nem outro DELETE.
 		expect((await api('GET', featurePath())).status).toBe(404);
+		expect((await api('PUT', featurePath(), { code: 'RAMP', description: null, present: true })).status).toBe(404);
+		expect((await api('PATCH', featurePath(), { present: false })).status).toBe(404);
+		expect((await api('DELETE', featurePath())).status).toBe(404);
+		const list = await api('GET', featuresPath());
+		expect(list.status).toBe(200);
+		expect(list.body).toEqual([]);
 	});
 
 	it('GET /rooms sem token devolve RM-401', async () => {
@@ -217,5 +231,20 @@ describe('BFF rooms — fim a fim', () => {
 		expect(res.body).toBeUndefined();
 		created.rooms.delete(bff + roomPath());
 		expect((await api('GET', roomPath())).status).toBe(404);
+	});
+
+	it('sala excluída logicamente some das listas e não aceita PUT, PATCH, DELETE nem características', async () => {
+		const gone = await api('GET', `${path}?code=${room.code}`);
+		expect(gone.status).toBe(404);
+		expect(gone.body.error_code).toBe('RM-404');
+		const sameBuilding = await api('GET', `${path}?building=${room.building}`);
+		expect(sameBuilding.status).toBe(200);
+		expect(sameBuilding.body.map((item: { id: string }) => item.id)).toEqual([secondRoomId]);
+
+		expect((await api('PUT', roomPath(), { ...room, name: 'Não deve gravar' })).status).toBe(404);
+		expect((await api('PATCH', roomPath(), { capacity: 1 })).status).toBe(404);
+		expect((await api('DELETE', roomPath())).status).toBe(404);
+		expect((await api('GET', featuresPath())).status).toBe(404);
+		expect((await api('POST', featuresPath(), feature)).status).toBe(404);
 	});
 });
