@@ -131,7 +131,8 @@ export class RoomsController {
 			}
 			response.status(result.status);
 			if (result.body) {
-				response.send(result.body);
+				if (compose && request.method === 'GET' && result.status === 200) response.end(result.body);
+				else response.send(result.body);
 			} else {
 				response.end();
 			}

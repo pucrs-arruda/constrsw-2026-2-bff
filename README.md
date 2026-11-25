@@ -85,6 +85,23 @@ resulta em 503 sem devolver o estudante pela metade.
 
 ## Módulo `rooms` (Grupo 08)
 
+Para rodar o E2E, suba a stack pela raiz do repositório base. Defina
+`E2E_PASSWORD` com a senha do administrador de teste. Se a senha do estudante
+for diferente, defina também `E2E_STUDENT_PASSWORD`.
+
+```bash
+docker compose -f docker-compose.yml -f backend/bff/compose.rooms.yaml up -d --build postgresql keycloak oauth rooms classes bff
+cd backend/bff
+npm run test:e2e:rooms
+```
+
+O E2E autentica pelo OAuth, exercita as 12 operações e limpa os dados que cria
+pela API. O overlay `compose.rooms.yaml` limita as dependências diretas do BFF
+a OAuth, rooms e classes. A integração usa fixtures HTTP em
+`src/testing/rooms-fixtures.ts` e `src/rooms.integration.spec.ts`.
+O contrato offline fica em `openapi/` e é verificado por
+`scripts/validate-contract.cjs`. O `package.json` registra o comando E2E.
+
 Sob `/api/v1/rooms`, as operações seguem o contrato `docs/open-api/bff.yaml`:
 
 | Rota | Métodos | Comportamento |
