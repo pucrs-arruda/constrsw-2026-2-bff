@@ -7,6 +7,7 @@ import { ClassesModule } from './modules/classes/classes.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { ResourcesModule } from './modules/resources/resources.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { StudentsModule } from './modules/students/students.module';
 
@@ -25,6 +26,7 @@ import { StudentsModule } from './modules/students/students.module';
 		CoursesModule,
 		EmployeesModule,
 		ReservationsModule,
+		ResourcesModule,
 		RoomsModule,
 		StudentsModule,
 	],
