@@ -16,6 +16,137 @@
     }
   ],
   "paths": {
+    "/api/v1/rooms": {
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "operationId": "listRooms",
+        "summary": "Lista salas e as classes do semestre em curso",
+        "description": "Mesmos filtros, ordenação e paginação do GET de salas do serviço rooms, inclusive o header `X-Total-Count` e o 404 quando nenhuma sala atende à consulta.\n\nCada sala inclui `classes`: classes sediadas nessa room no semestre em curso (`roomId` igual ao id da sala). Semestre em curso, no fuso America/Sao_Paulo: `year` é o ano civil atual; `semester` é 1 quando o mês é anterior a agosto e 2 quando o mês é agosto ou posterior. O cliente não envia `year` nem `semester`. Sem correspondência, `classes` é um array vazio.\n\n503 quando o serviço classes não puder ser consultado. As escritas deste caminho devolvem o corpo do serviço rooms, sem `classes`.\n",
+        "parameters": [
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/0"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/1"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/2"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/3"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/4"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/5"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/6"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/7"
+          },
+          {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/parameters/8"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leitura da BFF com a composição T3.\n",
+            "headers": {
+              "X-Total-Count": {
+                "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/responses/200/headers/X-Total-Count"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomViewList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/responses/400"
+          },
+          "401": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/responses/401"
+          },
+          "403": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/responses/403"
+          },
+          "404": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/get/responses/404"
+          },
+          "503": {
+            "$ref": "#/components/responses/CompositionUnavailable"
+          }
+        }
+      },
+      "post": {
+        "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms/post"
+      }
+    },
+    "/api/v1/rooms/{id}": {
+      "parameters": [
+        {
+          "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/parameters/0"
+        }
+      ],
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "operationId": "getRoom",
+        "summary": "Recupera uma sala e as classes do semestre em curso",
+        "description": "Recupera a sala pelo id, como no serviço rooms, e inclui `classes`: classes sediadas nessa room no semestre em curso (`roomId` igual ao id). Semestre em curso, no fuso America/Sao_Paulo: `year` é o ano civil atual; `semester` é 1 quando o mês é anterior a agosto e 2 quando o mês é agosto ou posterior. O cliente não envia `year` nem `semester`. Sem correspondência, `classes` é um array vazio.\n\n404 quando o serviço rooms não encontra o id. 503 quando o serviço classes não puder ser consultado.\n",
+        "responses": {
+          "200": {
+            "description": "Leitura da BFF com a composição T3.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/get/responses/400"
+          },
+          "401": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/get/responses/401"
+          },
+          "403": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/get/responses/403"
+          },
+          "404": {
+            "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/get/responses/404"
+          },
+          "503": {
+            "$ref": "#/components/responses/CompositionUnavailable"
+          }
+        }
+      },
+      "put": {
+        "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/put"
+      },
+      "patch": {
+        "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/patch"
+      },
+      "delete": {
+        "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}/delete"
+      }
+    },
+    "/api/v1/rooms/{id}/accessibility-features": {
+      "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}~1accessibility-features"
+    },
+    "/api/v1/rooms/{id}/accessibility-features/{featureId}": {
+      "$ref": "./domains/rooms.openapi.json#/paths/~1api~1v1~1rooms~1{id}~1accessibility-features~1{featureId}"
+    },
     "/health": {
       "get": {
         "tags": [
@@ -166,7 +297,65 @@
         "description": "JWT do usuÃƒÆ’Ã‚Â¡rio obtido em `POST http://localhost:8181/login` (API oauth). A BFF propaga `Authorization: Bearer` aos contextos.\n"
       }
     },
+    "responses": {
+      "CompositionUnavailable": {
+        "description": "O serviço usado na composição (classes, reservations ou employees na vista Professor) não respondeu. O recurso principal não é devolvido pela metade.\n",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
     "schemas": {
+      "RoomView": {
+        "$ref": "./domains/rooms.openapi.json#/components/schemas/RoomView"
+      },
+      "RoomViewList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RoomView"
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "description": "Problema RFC 9457 quando a composição com classes ou reservations falha.",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "code": {
+            "type": "string",
+            "const": "BFF-DEPENDENCY"
+          }
+        }
+      },
       "CourseView": {
         "type": "object",
         "additionalProperties": false,
