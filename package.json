@@ -14,7 +14,9 @@
     "test:cov": "npm test -- --coverage",
     "test:contract": "node scripts/validate-contract.cjs",
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand",
+    "test:e2e:classes": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/classes.e2e-spec.ts",
     "test:e2e:courses": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/courses.e2e-spec.ts",
+    "test:e2e:rooms": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/rooms.e2e-spec.ts",
     "test:e2e:students": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/students.e2e-spec.ts",
     "test:e2e:reservations": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/reservations.e2e-spec.ts",
     "test:e2e:resources": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/resources.e2e-spec.ts"

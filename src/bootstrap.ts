@@ -22,9 +22,10 @@ export function configureApp(app: INestApplication): void {
 		}
 		next();
 	});
-	// Courses and Resources own JSON validation, including malformed and empty payloads.
+	// Courses, Resources, and Rooms own JSON validation, including malformed and empty payloads.
 	app.use('/api/v1/courses', raw({ type: () => true, limit: '1mb' }));
 	app.use('/api/v1/resources', raw({ type: () => true, limit: '1mb' }));
+	app.use('/api/v1/rooms', raw({ type: () => true, limit: '1mb' }));
 	app.use(json({ limit: '1mb' }));
 	app.use(urlencoded({ extended: true, limit: '1mb' }));
 }

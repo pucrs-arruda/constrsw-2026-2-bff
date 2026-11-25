@@ -35,6 +35,13 @@ export const urls = {
 		),
 };
 
+/**
+ * Senha dos usuários do realm de desenvolvimento. É o mesmo valor que o `accessToken()` abaixo já
+ * usava como padrão; fica exportado para os specs de domínio não repetirem o literal nem exigirem
+ * `E2E_PASSWORD` só para rodar contra o compose de desenvolvimento.
+ */
+export const defaultPassword = (): string => setting('E2E_PASSWORD', 'a12345678');
+
 const tokenCache = new Map<string, string>();
 
 /**
@@ -43,7 +50,7 @@ const tokenCache = new Map<string, string>();
  */
 export async function accessToken(
 	username = setting('E2E_USERNAME', 'admin@pucrs.br'),
-	password = setting('E2E_PASSWORD', 'a12345678'),
+	password = defaultPassword(),
 ): Promise<string> {
 	const cached = tokenCache.get(username);
 	if (cached) {

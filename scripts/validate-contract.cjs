@@ -6,7 +6,9 @@ const addFormats = require('ajv-formats').default;
 const root = path.resolve(__dirname, '../openapi');
 const documents = new Map();
 const ajv = new Ajv({ strict: false, allErrors: true }); addFormats(ajv);
-for (const name of ['openapi.json', 'domains/courses.openapi.json', 'domains/classes.openapi.json', 'domains/resources.openapi.json']) {
+const operationCounts = { courses: 19, rooms: 12, resources: 6 };
+const domainNames = [...Object.keys(operationCounts), 'classes'];
+for (const name of ['openapi.json', ...domainNames.map(domain => `domains/${domain}.openapi.json`)]) {
   const document = JSON.parse(fs.readFileSync(path.join(root, name), 'utf8'));
   documents.set(`https://bff.invalid/${name}`, document);
   ajv.addSchema(document, `https://bff.invalid/${name}`);
@@ -19,8 +21,7 @@ function walk(value, base) {
     const uri = new URL(value.$ref, base);
     const target = documents.get(uri.origin + uri.pathname);
     assert(target, `Reference escapes offline contract: ${uri}`);
-    let resolved = target;
-    for (const part of decodeURIComponent(uri.hash.slice(2)).split('/').filter(Boolean)) resolved = resolved?.[part.replace(/~1/g, '/').replace(/~0/g, '~')];
+    const resolved = resolveReference(uri);
     assert(resolved !== undefined, `Unresolved reference: ${uri}`);
   }
   for (const item of Object.values(value)) walk(item, base);
@@ -29,17 +30,28 @@ for (const [uri, document] of documents) {
   walk(document, uri);
   for (const name of Object.keys(document.components?.schemas ?? {})) ajv.compile({ $ref: `${uri}#/components/schemas/${name}` });
 }
-const api = documents.get('https://bff.invalid/openapi.json');
-const operations = Object.entries(api.paths).filter(([name]) => name.startsWith('/api/v1/courses')).flatMap(([, item]) => Object.keys(item).filter(key => ['get', 'post', 'put', 'patch', 'delete'].includes(key)));
-// Referenced path items are checked through their resolved domain definition.
-let count = operations.length;
-for (const [name, item] of Object.entries(api.paths)) if (name.startsWith('/api/v1/courses') && item.$ref) {
-  const uri = new URL(item.$ref, 'https://bff.invalid/openapi.json');
-  let target = documents.get(uri.origin + uri.pathname);
-  for (const part of uri.hash.slice(2).split('/')) target = target[part.replace(/~1/g, '/').replace(/~0/g, '~')];
-  count += Object.keys(target).filter(key => ['get', 'post', 'put', 'patch', 'delete'].includes(key)).length;
+
+function resolveReference(uri) {
+  const target = documents.get(uri.origin + uri.pathname);
+  return decodeURIComponent(uri.hash.slice(1)).split('/').filter(Boolean)
+    .reduce((value, part) => value?.[part.replace(/~1/g, '/').replace(/~0/g, '~')], target);
 }
-assert.equal(count, 19);
+const apiUri = 'https://bff.invalid/openapi.json';
+const api = documents.get(apiUri);
+const methods = new Set(['get', 'post', 'put', 'patch', 'delete']);
+const counts = [];
+for (const [domain, expected] of Object.entries(operationCounts)) {
+  const prefix = `/api/v1/${domain}`;
+  const paths = Object.entries(api.paths).filter(([name]) => name === prefix || name.startsWith(prefix + '/'));
+  let count = 0;
+  for (const [, item] of paths) {
+    const definition = item.$ref ? resolveReference(new URL(item.$ref, apiUri)) : item;
+    count += Object.keys(definition).filter(method => methods.has(method)).length;
+  }
+  assert.equal(count, expected, `Unexpected operation count for ${domain}`);
+  counts.push(`${count} ${domain[0].toUpperCase() + domain.slice(1)} operations`);
+}
+
 const resourcesPaths = Object.keys(api.paths).filter(name => name.startsWith('/api/v1/resources'));
 assert.deepEqual(resourcesPaths, [
   '/api/v1/resources',
@@ -62,4 +74,4 @@ assert(api.components.schemas.FutureReservations);
 const resourcesDomain = documents.get('https://bff.invalid/domains/resources.openapi.json');
 assert(resourcesDomain.paths['/api/v1/resources']);
 assert(resourcesDomain.components.schemas.ResourceAggregate);
-console.log(`Offline contract OK: ${documents.size} documents, ${refs} references, ${count} Courses operations, ${resourcesCount} Resources operations; all schemas compile.`);
+console.log(`Offline contract OK: ${documents.size} documents, ${refs} references, ${counts.join(', ')}; all schemas compile.`);

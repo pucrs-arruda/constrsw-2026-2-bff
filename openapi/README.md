@@ -1,11 +1,12 @@
 # Contract snapshot
 
 `openapi.json` is the browser-facing snapshot: health, the 19 Courses operations,
-and the Resources module's `/api/v1/resources` routes (`bffSession` cookie security).
+the Resources routes, and the 12 Rooms operations under `/api/v1/rooms`
+(`bffSession` cookie security).
 The merged document keeps the inherited top-level server `http://localhost:8180`
 for health/Courses, while each Resources path item carries the module contract
-server `http://localhost:8088`. The JSON files in `domains/` preserve the Courses,
-Classes and Resources OpenAPI documents from the base checkouts, converted from
+server `http://localhost:8088`. The JSON files in `domains/` preserve the Courses, Rooms, Classes and Resources
+OpenAPI documents from the base checkouts, converted from
 YAML without semantic changes. They have no external references. Validate offline
 with `npm run test:contract`.
 
@@ -22,6 +23,6 @@ The domain snapshot in `domains/resources.openapi.json` keeps the domain
 `Resource`/`ResourceAggregate` shapes (including `enabled`) so the BFF can validate
 composed reads before mapping.
 
-This snapshot documents Courses and Resources. The inherited Rooms module still
-follows its older `/v1/rooms` proxy contract; its owner must reconcile it with the
-current base `/api/v1/rooms` composition contract.
+O Grupo 08 acrescenta 12 operações sob `/api/v1/rooms`. Os dois GETs principais
+usam `RoomView`, com o array obrigatório `classes` do semestre em curso.
+`npm run test:contract` também confere essa contribuição.

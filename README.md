@@ -104,6 +104,44 @@ com `code: BFF-DOWNSTREAM-UNAVAILABLE`.
 `EMPLOYEES_BASE_URL` é só a origem HTTP (sem `/api/v1`); o prefixo do contrato é
 montado no serviço.
 
+## Módulo `rooms` (Grupo 08)
+
+Para rodar o E2E, suba a stack pela raiz do repositório base. Defina
+`E2E_PASSWORD` com a senha do administrador de teste. Se a senha do estudante
+for diferente, defina também `E2E_STUDENT_PASSWORD`.
+
+```bash
+docker compose -f docker-compose.yml -f backend/bff/compose.rooms.yaml up -d --build postgresql keycloak oauth rooms classes bff
+cd backend/bff
+npm run test:e2e:rooms
+```
+
+O E2E autentica pelo OAuth, exercita as 12 operações e limpa os dados que cria
+pela API. O overlay `compose.rooms.yaml` limita as dependências diretas do BFF
+a OAuth, rooms e classes. A integração usa fixtures HTTP em
+`src/testing/rooms-fixtures.ts` e `src/rooms.integration.spec.ts`.
+O contrato offline fica em `openapi/` e é verificado por
+`scripts/validate-contract.cjs`. O `package.json` registra o comando E2E.
+
+Sob `/api/v1/rooms`, as operações seguem o contrato `docs/open-api/bff.yaml`:
+
+| Rota | Métodos | Comportamento |
+|---|---|---|
+| `/api/v1/rooms` | GET | Composição T3: lista salas com `classes` do semestre em curso |
+| `/api/v1/rooms` | POST | Proxy puro para o serviço rooms (`Location`, status e erros intactos) |
+| `/api/v1/rooms/{id}` | GET | Composição T3: recupera sala com `classes` do semestre em curso |
+| `/api/v1/rooms/{id}` | PUT, PATCH, DELETE | Proxy puro para o serviço rooms |
+| `/api/v1/rooms/{id}/accessibility-features` | GET, POST | Proxy puro para características de acessibilidade |
+| `/api/v1/rooms/{id}/accessibility-features/{featureId}` | GET, PUT, PATCH, DELETE | Proxy puro para característica por id |
+
+- **Composição de leitura (T3):** `GET /api/v1/rooms` e `GET /api/v1/rooms/{id}` compõem `classes` do semestre em curso (calculado no fuso `America/Sao_Paulo`: `year` civil; `semester` = 1 de janeiro a julho e 2 de agosto a dezembro). As turmas entram na composição quando `roomId` for igual ao id da sala. Coleção vazia do rooms não chama classes e retorna `[]`. Falha ou indisponibilidade do serviço classes retorna 503 `application/problem+json` com `code: 'BFF-DEPENDENCY'` — a sala nunca é retornada sem turmas por falha na dependência.
+- **Decisão D5 (filtro de classes por papel):** O BFF repassa o token do próprio usuário ao rooms e ao classes (mesmo padrão de students e courses). Como consequência, o serviço classes filtra as turmas com base no papel do usuário logado: coordinator e administrator veem todas as turmas sediadas na sala; professor vê apenas as turmas que conduz; student vê apenas as turmas que cursa.
+- **Resiliência e proxy:** Timeout, retry (apenas métodos idempotentes `GET` e `HEAD` para evitar repetição indevida de escritas) e circuit breakers independentes para rooms e classes. Query strings cruas (`{gteq}`, `%25` do like) e corpos brutos são preservados. Headers `X-Total-Count` e `Location` são repassados; nos GETs compostos, `etag` e `last-modified` são removidos e `cache-control: no-store` é definido.
+- **Exceções de escopo fora de `src/modules/rooms/` (Seção 0.6 / `spec-bff/contribution.md`):**
+  - `src/bootstrap.ts`: 1 linha adicionada (`app.use('/api/v1/rooms', raw({ type: () => true, limit: '1mb' }));`) ao lado de `/api/v1/courses` para preservar o corpo bruto (`Buffer`) no proxy e delegar a validação de JSON malformado ao serviço `rooms` (`RM-400`).
+  - Pontos compartilhados de contrato, testes e execução do domínio (entregues em conjunto com a suíte de testes/contrato do Grupo 08): `openapi/*` (`openapi/domains/rooms.openapi.json`, `openapi/openapi.json`, `openapi/README.md`), `scripts/validate-contract.cjs`, script `test:e2e:rooms` em `package.json`, `compose.rooms.yaml`, `src/testing/rooms-fixtures.ts`, `src/rooms.integration.spec.ts` e `test/e2e/rooms.e2e-spec.ts`.
+
+
 ## Módulo `reservations` (Grupo 03)
 
 **Proxy puro** (o `bff.yaml` não pede composição para reservations), com os mesmos paths do contrato
@@ -200,17 +238,34 @@ Testes: `npm test` cobre o proxy/read-model com fronteira HTTP real e o contrato
 `E2E_DOCKER=1` ativa o cenário de resources parado. O cenário de papel somente leitura roda quando
 `E2E_READONLY_USERNAME` (e opcionalmente `E2E_READONLY_PASSWORD`) está definido.
 
+## Módulo `classes` (Grupo 01)
+
+**Proxy puro** nos paths de `docs/open-api/bff.yaml` e `docs/open-api/grupo01-classes-api.yaml`:
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/classes` | GET, POST |
+| `/api/v1/classes/import` | POST |
+| `/api/v1/classes/{classId}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/classes/{classId}/reviews` | GET, POST |
+| `/api/v1/classes/{classId}/reviews/{reviewId}` | GET, PUT, PATCH, DELETE |
+
+- Preserva query string crua (operadores `{neq}`, `{gt}`, `{gteq}`, `{lt}`, `{lteq}`, `{like}`), corpo (incluindo array JSON no `/import` e aliases em português de reviews), status, `Content-Type` e `Location`.
+- Usa `CLASSES_BASE_URL` (default `http://classes:8107`) e os parâmetros compartilhados `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*`; indisponibilidade retorna `503` `application/problem+json` com `code: "BFF-DOWNSTREAM-UNAVAILABLE"`.
+- E2E contra a stack real do Compose: `npm run test:e2e:classes` (ou `E2E_DOCKER=1 npm run test:e2e:classes` para validar `503` parando o container `classes`).
+
 ## Quem faz o quê
 
 | Pasta | Dono |
 |---|---|
+| `src/modules/classes/` | Grupo 01 |
 | `src/modules/courses/` | Grupo 05 |
 | `src/modules/employees/` | proxy employees (malha) |
 | `src/modules/reservations/` | Grupo 03 |
 | `src/modules/rooms/` | Grupo 08 |
 | `src/modules/students/` | Grupo 04 |
 | `src/modules/resources/` | resources (UX-S3) |
-| `src/modules/classes/`, `src/modules/lessons/`, … | um grupo cada |
+| `src/modules/lessons/`, `src/modules/professors/`, … | um grupo cada |
 | `src/modules/ocupacao/` | FR-29, dono único a definir |
 | `common/` | compartilhado |
 
@@ -306,7 +361,7 @@ Cada grupo acrescenta `src/modules/<domínio>/` e registra seu módulo em
 compatibilidade com os módulos existentes. `app.module.ts`, `package.json` e
 lockfile são pontos compartilhados de integração.
 
-Rooms mantém suas rotas legadas `/v1/rooms` e testes. Students e Reservations
+Rooms publica `/api/v1/rooms` com composição T3 de turmas e testes. Students e Reservations
 mantêm E2Es independentes. Courses reutiliza o runner compartilhado para testar
 com Classes real.
 
