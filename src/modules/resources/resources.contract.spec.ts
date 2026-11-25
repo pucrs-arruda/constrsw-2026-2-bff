@@ -45,6 +45,7 @@ describe('Proxy de resources (fronteira BFF↔domínio)', () => {
 				return { ...json(201, occurrence), location: `${OPEN}/${RESOURCE_ID}/occurrences/${occurrence.id}` };
 			}
 			if (path.endsWith(`/occurrences/${occurrence.id}`) && call.method === 'PATCH') return json(200, resolvedOccurrence);
+			if (call.method === 'DELETE') return { status: 204, body: '', contentType: null };
 			return json(200, {});
 		};
 		reservationsReply = () => json(200, []);
@@ -199,6 +200,34 @@ describe('Proxy de resources (fronteira BFF↔domínio)', () => {
 
 		expect(response.body).toEqual(withoutEnabled(resolvedOccurrence));
 		expect(response.body.status).toBe('RESOLVED');
+	});
+
+	it('exclui logicamente o recurso pelo verbo DELETE e devolve 204 sem corpo', async () => {
+		const response = await request(app.getHttpServer())
+			.delete(`/api/v1/resources/${RESOURCE_ID}`)
+			.set('authorization', 'Bearer token')
+			.expect(204);
+
+		expect(response.text).toBe('');
+		expect(resourcesSent[0].method).toBe('DELETE');
+		expect(resourcesSent[0].path).toBe(`${OPEN}/${RESOURCE_ID}`);
+		expect(reservationsSent).toHaveLength(0);
+	});
+
+	it('exclui logicamente a ocorrência pelo caminho aninhado', async () => {
+		const response = await request(app.getHttpServer())
+			.delete(`/api/v1/resources/${RESOURCE_ID}/occurrences/${occurrence.id}`)
+			.set('authorization', 'Bearer token')
+			.expect(204);
+
+		expect(response.text).toBe('');
+		expect(resourcesSent[0].method).toBe('DELETE');
+		expect(resourcesSent[0].path).toBe(`${OPEN}/${RESOURCE_ID}/occurrences/${occurrence.id}`);
+	});
+
+	it('não chama o domínio no DELETE sem sessão', async () => {
+		await request(app.getHttpServer()).delete(`/api/v1/resources/${RESOURCE_ID}`).expect(401);
+		expect(resourcesSent).toHaveLength(0);
 	});
 
 	it('repassa 409 do domínio byte a byte', async () => {
