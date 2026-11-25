@@ -1,8 +1,9 @@
 # Contract snapshot
 
 `openapi.json` is the browser-facing snapshot: health, the 19 Courses operations,
-the Resources routes, and the 12 Rooms operations under `/api/v1/rooms`
-(`bffSession` cookie security).
+the 8 Resources operations (including the logical `DELETE` of a resource and of an
+occurrence), and the 12 Rooms operations under `/api/v1/rooms`
+(`bffSession` cookie `closed_cras_session`).
 The merged document keeps the inherited top-level server `http://localhost:8180`
 for health/Courses, while each Resources path item carries the module contract
 server `http://localhost:8088`. The JSON files in `domains/` preserve the Courses, Rooms, Classes and Resources

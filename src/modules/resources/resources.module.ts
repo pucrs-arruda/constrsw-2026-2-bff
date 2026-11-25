@@ -11,8 +11,9 @@ import {
 	ResourcesService,
 } from './resources.service';
 
-function integer(config: ConfigService, name: string, fallback: number, min: number, max: number): number {
-	const value = Number(config.get(name, fallback));
+export function integer(config: ConfigService, name: string, fallback: number, min: number, max: number): number {
+	const raw = config.get(name, fallback);
+	const value = raw === undefined || raw === null || String(raw).trim() === '' ? fallback : Number(raw);
 	if (!Number.isInteger(value) || value < min || value > max) throw new Error(`Invalid BFF configuration: ${name}`);
 	return value;
 }

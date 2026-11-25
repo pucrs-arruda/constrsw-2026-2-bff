@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Req, Res } from '@nestjs/common';
+import { Controller, Delete, Get, Patch, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { bearerTokenOf } from '../../common/auth/bearer-token';
@@ -12,8 +12,10 @@ import { ResourcesService } from './resources.service';
  * - `POST   /api/v1/resources`                                              — cria + `Location`
  * - `GET    /api/v1/resources/:resourceId`                                  — agregado + count + reservations
  * - `PATCH  /api/v1/resources/:resourceId`                                  — atualiza agregado + count + reservations
+ * - `DELETE /api/v1/resources/:resourceId`                                  — exclusão lógica (204)
  * - `POST   /api/v1/resources/:resourceId/occurrences`                      — registra + `Location`
  * - `PATCH  /api/v1/resources/:resourceId/occurrences/:occurrenceId`        — resolve
+ * - `DELETE /api/v1/resources/:resourceId/occurrences/:occurrenceId`        — exclusão lógica (204)
  *
  * Toda rota exige sessão (cookie ou Bearer). Sem token, o BFF responde 401 `problem+json` antes de
  * qualquer chamada ao domínio. O domínio é o dono das recusas: 403, 404, 409 e 422 sobem intactos.
@@ -46,6 +48,12 @@ export class ResourcesController {
 			this.resources.update(segment(request.params.resourceId), bodyOf(request), request.headers['content-type'], token, instance, signal));
 	}
 
+	@Delete(':resourceId')
+	remove(@Req() request: Request, @Res() response: Response): Promise<void> {
+		return this.proxy(request, response, (token, instance, signal) =>
+			this.resources.remove(segment(request.params.resourceId), token, instance, signal));
+	}
+
 	@Post(':resourceId/occurrences')
 	createOccurrence(@Req() request: Request, @Res() response: Response): Promise<void> {
 		return this.proxy(request, response, (token, instance, signal) =>
@@ -53,6 +61,18 @@ export class ResourcesController {
 				segment(request.params.resourceId),
 				bodyOf(request),
 				request.headers['content-type'],
+				token,
+				instance,
+				signal,
+			));
+	}
+
+	@Delete(':resourceId/occurrences/:occurrenceId')
+	removeOccurrence(@Req() request: Request, @Res() response: Response): Promise<void> {
+		return this.proxy(request, response, (token, instance, signal) =>
+			this.resources.removeOccurrence(
+				segment(request.params.resourceId),
+				segment(request.params.occurrenceId),
 				token,
 				instance,
 				signal,

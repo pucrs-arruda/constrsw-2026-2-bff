@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-import { reservationsDownstream, resourcesDownstream } from './resources.module';
+import { integer, reservationsDownstream, resourcesDownstream } from './resources.module';
 
 function config(values: Record<string, string | undefined>): ConfigService {
 	return {
@@ -21,6 +21,10 @@ describe('configuração do módulo resources', () => {
 	it('rejeita RESOURCES_BASE_URL com path', () => {
 		expect(() => resourcesDownstream(config({ RESOURCES_BASE_URL: 'http://resources:8106/api' })))
 			.toThrow('Invalid BFF configuration: RESOURCES_BASE_URL');
+	});
+
+	it.each(['', '   '])('trata variável inteira em branco como o fallback (%j)', value => {
+		expect(integer(config({ BFF_HTTP_RETRIES: value }), 'BFF_HTTP_RETRIES', 2, 0, 5)).toBe(2);
 	});
 
 	it('rejeita BFF_HTTP_TIMEOUT_MS que não é inteiro', () => {

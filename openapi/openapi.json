@@ -549,6 +549,34 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "bffDeleteResource",
+        "summary": "Logically delete a resource",
+        "description": "Browser-facing logical delete. The resources context sets enabled=false on the resource and its occurrences; the BFF forwards the 204 with no body. This is distinct from active, the reservation gate.\n",
+        "responses": {
+          "204": {
+            "description": "Resource deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
       "servers": [
         {
           "url": "http://localhost:8088",
@@ -708,7 +736,35 @@
           "url": "http://localhost:8088",
           "description": "Local compose BFF"
         }
-      ]
+      ],
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "operationId": "bffDeleteOccurrence",
+        "summary": "Logically delete an occurrence",
+        "description": "Browser-facing logical delete. The resources context sets enabled=false and retains the history; the BFF forwards the 204 with no body.\n",
+        "responses": {
+          "204": {
+            "description": "Occurrence deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/DependencyUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -722,8 +778,8 @@
       "bffSession": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "cras_session",
-        "description": "BFF session cookie set by the shared auth module. httpOnly, SameSite=Lax.\nThe BFF validates the session and forwards the user's Bearer token to the\nresources context. This module does not set or refresh the cookie.\n"
+        "name": "closed_cras_session",
+        "description": "BFF session cookie set by the shared auth module. httpOnly, SameSite=Lax.\nThe BFF reads closed_cras_session and forwards its access_token as Bearer;\nthe resources context validates the token. This module does not set or refresh\nthe cookie.\n"
       }
     },
     "schemas": {

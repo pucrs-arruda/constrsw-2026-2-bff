@@ -8,7 +8,8 @@ import { http, setting, urls, waitForBff } from './support/e2e-env';
  *
  * Ciclo: cria recurso → lista/detalhe com `openOccurrenceCount` → registra ocorrência →
  * resolve → confere a contagem e o 409 da segunda resolução → compara recusas com o domínio
- * direto → exclui (lógica) no domínio. Sem token, o BFF responde 401 sem chamar o resources.
+ * direto → exclui (lógica) ocorrência e recurso pelo BFF. Sem token, o BFF responde 401 sem
+ * chamar o resources.
  *
  * Rodar: `npm run test:e2e:resources`.
  */
@@ -223,8 +224,17 @@ describe('BFF resources — shared end-to-end runner', () => {
 		}
 	});
 
-	it('DELETE pelo domínio faz a exclusão lógica e o detalhe passa a 404', async () => {
-		const removed = await direct('DELETE', `${DOMAIN}/${resourceId}`);
+	it('DELETE da ocorrência pelo BFF remove o item do agregado', async () => {
+		const removed = await call('DELETE', `${BROWSER}/${resourceId}/occurrences/${occurrenceId}`);
+		expect(removed.status).toBe(204);
+
+		const detail = await call('GET', `${BROWSER}/${resourceId}`);
+		expect(detail.status).toBe(200);
+		expect(detail.body.occurrences.map((item: { id: string }) => item.id)).not.toContain(occurrenceId);
+	});
+
+	it('DELETE pelo BFF faz a exclusão lógica e o detalhe passa a 404', async () => {
+		const removed = await call('DELETE', `${BROWSER}/${resourceId}`);
 		expect(removed.status).toBe(204);
 
 		const after = await call('GET', `${BROWSER}/${resourceId}`);

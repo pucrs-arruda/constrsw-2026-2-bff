@@ -116,6 +116,15 @@ export class ResourcesService {
 		return composed(200, resourceOf(aggregate as Json, reservations), response.headers);
 	}
 
+	async remove(resourceId: string, bearerToken: string | undefined, instance: string, signal?: AbortSignal): Promise<DownstreamResponse> {
+		return this.send({ method: 'DELETE', suffix: `/${encodeURIComponent(resourceId)}`, bearerToken, signal }, instance);
+	}
+
+	async removeOccurrence(resourceId: string, occurrenceId: string, bearerToken: string | undefined, instance: string, signal?: AbortSignal): Promise<DownstreamResponse> {
+		const suffix = `/${encodeURIComponent(resourceId)}/occurrences/${encodeURIComponent(occurrenceId)}`;
+		return this.send({ method: 'DELETE', suffix, bearerToken, signal }, instance);
+	}
+
 	async createOccurrence(resourceId: string, body: string | undefined, contentType: string | undefined, bearerToken: string | undefined, instance: string, signal?: AbortSignal): Promise<DownstreamResponse> {
 		const response = await this.send({ method: 'POST', suffix: `/${encodeURIComponent(resourceId)}/occurrences`, body, contentType, bearerToken, signal }, instance);
 		if (response.status !== 201) return response;

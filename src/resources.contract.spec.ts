@@ -68,7 +68,9 @@ describe('offline Resources BFF schemas', () => {
 
 	it('declares the browser session security scheme and the resources operations', () => {
 		const document = JSON.parse(readFileSync(join(__dirname, '..', 'openapi', 'openapi.json'), 'utf8'));
-		expect(document.components.securitySchemes.bffSession).toMatchObject({ type: 'apiKey', in: 'cookie', name: 'cras_session' });
+		expect(document.components.securitySchemes.bffSession).toMatchObject({ type: 'apiKey', in: 'cookie', name: 'closed_cras_session' });
+		expect(document.paths['/api/v1/resources/{resourceId}'].delete.operationId).toBe('bffDeleteResource');
+		expect(document.paths['/api/v1/resources/{resourceId}/occurrences/{occurrenceId}'].delete.operationId).toBe('bffDeleteOccurrence');
 		const paths = Object.keys(document.paths).filter(name => name.startsWith('/api/v1/resources'));
 		expect(paths).toEqual([
 			'/api/v1/resources',

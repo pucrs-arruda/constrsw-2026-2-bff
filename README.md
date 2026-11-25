@@ -186,8 +186,10 @@ Rotas browser-facing publicadas sob `/api/v1/resources` (o mesmo prefixo do dom�
 | `/api/v1/resources` | POST | Proxy da criação; `Location` em `/api/v1/resources/{id}` |
 | `/api/v1/resources/{resourceId}` | GET | Agregado com `openOccurrenceCount`, `reservations` e `occurrences` em array puro |
 | `/api/v1/resources/{resourceId}` | PATCH | Proxy da atualização; mesmo agregado composto |
+| `/api/v1/resources/{resourceId}` | DELETE | Exclusão lógica no domínio; repassa `204` sem corpo |
 | `/api/v1/resources/{resourceId}/occurrences` | POST | Proxy do registro; `Location` em `/api/v1/resources/...` |
 | `/api/v1/resources/{resourceId}/occurrences/{occurrenceId}` | PATCH | Proxy da resolução (`{resolution}`) |
+| `/api/v1/resources/{resourceId}/occurrences/{occurrenceId}` | DELETE | Exclusão lógica no domínio; repassa `204` sem corpo |
 
 - `openOccurrenceCount` é o número de ocorrências com status `OPEN`, calculado no read time. Não é
   persistido e não existe no contrato do domínio. A lista faz uma leitura de agregado por recurso
@@ -210,28 +212,11 @@ Rotas browser-facing publicadas sob `/api/v1/resources` (o mesmo prefixo do dom�
 Configuração: `RESOURCES_BASE_URL` (default `http://resources:8106`),
 `RESERVATIONS_BASE_URL` (default `http://reservations:8109`) mais os `BFF_HTTP_*` e
 `BFF_CIRCUIT_BREAKER_*` compartilhados. A lista repassa somente os filtros documentados (`code`,
-`type`, `active`, `tag`). O `docker-compose.yml` da base **não** define um serviço `bff`; inclua
-estas chaves no serviço `bff` do seu override (ou no bloco que você usa para subir o BFF):
-
-```yaml
-services:
-  bff:
-    environment:
-      RESOURCES_BASE_URL: http://resources:8106
-      RESERVATIONS_BASE_URL: http://reservations:8109
-      # ou: RESOURCES_BASE_URL: ${BFF_RESOURCES_BASE_URL}
-      #     RESERVATIONS_BASE_URL: ${BFF_RESERVATIONS_BASE_URL}
-    depends_on:
-      resources: { condition: service_healthy }
-      reservations: { condition: service_healthy }
-      oauth: { condition: service_healthy }
-```
-
-Se preferir a convenção do base, defina `BFF_RESOURCES_BASE_URL=http://resources:8106` e
-`BFF_RESERVATIONS_BASE_URL=http://reservations:8109` no `.env` e use
-`RESOURCES_BASE_URL: ${BFF_RESOURCES_BASE_URL}` / `RESERVATIONS_BASE_URL:
-${BFF_RESERVATIONS_BASE_URL}`. O cookie de sessão continua vindo de `SESSION_COOKIE_NAME` (default
-`closed_cras_session`); `cras_session` no contrato é placeholder do módulo de auth.
+`type`, `active`, `tag`). O `docker-compose.yml` da base já define o serviço `bff` e injeta
+`RESOURCES_BASE_URL=${BFF_RESOURCES_BASE_URL}` e `RESERVATIONS_BASE_URL=${BFF_RESERVATIONS_BASE_URL}`
+(`docker-compose.yml`, serviço `bff`); basta definir as duas variáveis `BFF_*` no `.env` da base.
+O cookie de sessão vem de `SESSION_COOKIE_NAME` (default `closed_cras_session`), o mesmo nome
+publicado no contrato browser.
 
 Testes: `npm test` cobre o proxy/read-model com fronteira HTTP real e o contrato offline;
 `npm run test:e2e:resources` exige a stack do compose com resources, OAuth/Keycloak e o BFF.

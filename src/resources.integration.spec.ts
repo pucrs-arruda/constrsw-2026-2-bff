@@ -324,6 +324,29 @@ describe('Resources BFF over real HTTP boundaries', () => {
 		expect(detail.body.openOccurrenceCount).toBe(0);
 	});
 
+	it('exclui logicamente o recurso pelo BFF e repassa o 204 do domínio', async () => {
+		const response = await request(app.getHttpServer())
+			.delete(`/api/v1/resources/${RESOURCE_ID}`)
+			.set('authorization', 'Bearer caller-access')
+			.expect(204);
+
+		expect(response.text).toBe('');
+		expect(resources.seen[0].method).toBe('DELETE');
+		expect(resources.seen[0].url).toBe(`${DOMAIN}/${RESOURCE_ID}`);
+		expect(reservations.seen).toHaveLength(0);
+	});
+
+	it('exclui logicamente a ocorrência pelo BFF', async () => {
+		const response = await request(app.getHttpServer())
+			.delete(`/api/v1/resources/${RESOURCE_ID}/occurrences/${occurrence.id}`)
+			.set('authorization', 'Bearer caller-access')
+			.expect(204);
+
+		expect(response.text).toBe('');
+		expect(resources.seen[0].method).toBe('DELETE');
+		expect(resources.seen[0].url).toBe(`${DOMAIN}/${RESOURCE_ID}/occurrences/${occurrence.id}`);
+	});
+
 	it('repassa o 409 da segunda resolução sem alterar o corpo', async () => {
 		const problem = JSON.stringify({
 			type: 'urn:closed-cras:recusa:FR-22', title: 'Business rule refused', status: 409,
@@ -401,6 +424,8 @@ describe('Resources BFF over real HTTP boundaries', () => {
 		['patch', `/api/v1/resources/${RESOURCE_ID}`],
 		['post', `/api/v1/resources/${RESOURCE_ID}/occurrences`],
 		['patch', `/api/v1/resources/${RESOURCE_ID}/occurrences/${occurrence.id}`],
+		['delete', `/api/v1/resources/${RESOURCE_ID}`],
+		['delete', `/api/v1/resources/${RESOURCE_ID}/occurrences/${occurrence.id}`],
 	])('gera 401 problem+json sem chamar o domínio em %s %s', async (method, path) => {
 		const response = await (request(app.getHttpServer()) as any)[method](path).expect(401);
 
@@ -526,6 +551,9 @@ function defaultHandler(seen: SeenRequest): Reply {
 	}
 	if (seen.method === 'PATCH' && path.endsWith(`/occurrences/${occurrence.id}`)) {
 		return { body: JSON.stringify(resolvedOccurrence) };
+	}
+	if (seen.method === 'DELETE' && (path === `${DOMAIN}/${RESOURCE_ID}` || path.endsWith(`/occurrences/${occurrence.id}`))) {
+		return { status: 204 };
 	}
 	return { status: 404, body: '{}' };
 }
