@@ -130,6 +130,7 @@ domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
 
 - Preserva query string crua (operadores `{neq}`, `{gt}`, `{gteq}`, `{lt}`, `{lteq}`, `{like}`), corpo (incluindo array JSON no `/import` e aliases em português de reviews), status, `Content-Type` e `Location`.
 - Usa `CLASSES_BASE_URL` (default `http://classes:8107`) e os parâmetros compartilhados `BFF_HTTP_*` e `BFF_CIRCUIT_BREAKER_*`; indisponibilidade retorna `503` `application/problem+json` com `code: "BFF-DOWNSTREAM-UNAVAILABLE"`.
+- E2E contra a stack real do Compose: `npm run test:e2e:classes` (ou `E2E_DOCKER=1 npm run test:e2e:classes` para validar `503` parando o container `classes`).
 
 ## Quem faz o quê
 
