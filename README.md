@@ -84,6 +84,25 @@ estudante, usando uma consulta a Classes por requisição. Erros do domínio sob
 intactos; quando Students responde 200, uma falha ou resposta inválida de Classes
 resulta em 503 sem devolver o estudante pela metade.
 
+## Módulo `employees`
+
+**Proxy puro** (sem composição T3), com os mesmos paths do contrato
+`docs/open-api/arruda-employees-api.yaml` / `bff.yaml`:
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/employees` | GET, POST |
+| `/api/v1/employees/{id}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/employees/{id}/dependents` | GET, POST |
+| `/api/v1/employees/{id}/dependents/{dependentId}` | GET, PUT, PATCH, DELETE |
+
+O Bearer do usuário (header ou cookie de sessão) segue para o domínio. Status, corpo,
+`Content-Type` e `Location` sobem intactos. Domínio fora do ar → `503` `problem+json`
+com `code: BFF-DOWNSTREAM-UNAVAILABLE`.
+
+`EMPLOYEES_BASE_URL` é só a origem HTTP (sem `/api/v1`); o prefixo do contrato é
+montado no serviço.
+
 ## Módulo `rooms` (Grupo 08)
 
 Para rodar o E2E, suba a stack pela raiz do repositório base. Defina
@@ -121,24 +140,6 @@ Sob `/api/v1/rooms`, as operações seguem o contrato `docs/open-api/bff.yaml`:
   - `src/bootstrap.ts`: 1 linha adicionada (`app.use('/api/v1/rooms', raw({ type: () => true, limit: '1mb' }));`) ao lado de `/api/v1/courses` para preservar o corpo bruto (`Buffer`) no proxy e delegar a validação de JSON malformado ao serviço `rooms` (`RM-400`).
   - Pontos compartilhados de contrato, testes e execução do domínio (entregues em conjunto com a suíte de testes/contrato do Grupo 08): `openapi/*` (`openapi/domains/rooms.openapi.json`, `openapi/openapi.json`, `openapi/README.md`), `scripts/validate-contract.cjs`, script `test:e2e:rooms` em `package.json`, `compose.rooms.yaml`, `src/testing/rooms-fixtures.ts`, `src/rooms.integration.spec.ts` e `test/e2e/rooms.e2e-spec.ts`.
 
-## Módulo `employees`
-
-**Proxy puro** (sem composição T3), com os mesmos paths do contrato
-`docs/open-api/arruda-employees-api.yaml` / `bff.yaml`:
-
-| Rota | Métodos |
-|---|---|
-| `/api/v1/employees` | GET, POST |
-| `/api/v1/employees/{id}` | GET, PUT, PATCH, DELETE |
-| `/api/v1/employees/{id}/dependents` | GET, POST |
-| `/api/v1/employees/{id}/dependents/{dependentId}` | GET, PUT, PATCH, DELETE |
-
-O Bearer do usuário (header ou cookie de sessão) segue para o domínio. Status, corpo,
-`Content-Type` e `Location` sobem intactos. Domínio fora do ar → `503` `problem+json`
-com `code: BFF-DOWNSTREAM-UNAVAILABLE`.
-
-`EMPLOYEES_BASE_URL` é só a origem HTTP (sem `/api/v1`); o prefixo do contrato é
-montado no serviço.
 
 ## Módulo `reservations` (Grupo 03)
 
