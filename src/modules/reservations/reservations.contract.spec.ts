@@ -253,6 +253,27 @@ describe('Módulo reservations do BFF (Grupo 03)', () => {
 			expect(backend.calls[0].headers['content-type']).toContain('application/json');
 		});
 
+		it('CAP-1 repassa os cabeçalhos do domínio (X-Total-Count, Retry-After, WWW-Authenticate, ETag) e não vaza Set-Cookie', async () => {
+			backend.respond((_req, res) => {
+				res.writeHead(200, {
+					'content-type': 'application/json',
+					'x-total-count': '3',
+					'retry-after': '5',
+					'www-authenticate': 'Bearer error="insufficient_scope"',
+					etag: '"v1"',
+					'set-cookie': 'interno=segredo',
+				}).end('[]');
+			});
+
+			const res = await request(app.getHttpServer()).get('/api/v1/reservations').set(auth()).expect(200);
+
+			expect(res.headers['x-total-count']).toBe('3');
+			expect(res.headers['retry-after']).toBe('5');
+			expect(res.headers['www-authenticate']).toBe('Bearer error="insufficient_scope"');
+			expect(res.headers.etag).toBe('"v1"');
+			expect(res.headers['set-cookie']).toBeUndefined();
+		});
+
 		it('B3.3 query complexa chega sem ser decodificada', async () => {
 			const path = '/api/v1/reservations?data={gteq}2026-11-05&purpose={like}%25banca%25&faixaId=C';
 

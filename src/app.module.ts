@@ -5,6 +5,7 @@ import { HealthController } from './common/health/health.controller';
 import { HttpMetrics, MetricsController } from './common/health/http-metrics';
 import { ClassesModule } from './modules/classes/classes.module';
 import { CoursesModule } from './modules/courses/courses.module';
+import { EmployeesModule } from './modules/employees/employees.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { StudentsModule } from './modules/students/students.module';
@@ -22,6 +23,7 @@ import { StudentsModule } from './modules/students/students.module';
 		ConfigModule.forRoot({ isGlobal: true }),
 		ClassesModule,
 		CoursesModule,
+		EmployeesModule,
 		ReservationsModule,
 		RoomsModule,
 		StudentsModule,

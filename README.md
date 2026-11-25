@@ -38,6 +38,7 @@ docker compose up -d --build bff
 | `COURSES_BASE_URL` | `BFF_COURSES_BASE_URL` | Origem HTTP de Courses, sem `/api/v1` |
 | `CLASSES_BASE_URL` | `BFF_CLASSES_BASE_URL` | Origem HTTP de Classes, sem `/api/v1` |
 | `STUDENTS_BASE_URL` | `BFF_STUDENTS_BASE_URL` | Origem HTTP de Students |
+| `EMPLOYEES_BASE_URL` | `BFF_EMPLOYEES_BASE_URL` | Origem HTTP de Employees, sem `/api/v1` |
 | `RESERVATIONS_BASE_URL` | `BFF_RESERVATIONS_BASE_URL` | Origem HTTP de Reservations |
 | `ROOMS_BASE_URL` | `BFF_ROOMS_BASE_URL` | Origem HTTP de Rooms |
 | `JWT_ISSUER` / `JWT_AUDIENCE` | `BFF_JWT_*` | Validação JWT (reservations) |
@@ -83,6 +84,25 @@ estudante, usando uma consulta a Classes por requisição. Erros do domínio sob
 intactos; quando Students responde 200, uma falha ou resposta inválida de Classes
 resulta em 503 sem devolver o estudante pela metade.
 
+## Módulo `employees`
+
+**Proxy puro** (sem composição T3), com os mesmos paths do contrato
+`docs/open-api/arruda-employees-api.yaml` / `bff.yaml`:
+
+| Rota | Métodos |
+|---|---|
+| `/api/v1/employees` | GET, POST |
+| `/api/v1/employees/{id}` | GET, PUT, PATCH, DELETE |
+| `/api/v1/employees/{id}/dependents` | GET, POST |
+| `/api/v1/employees/{id}/dependents/{dependentId}` | GET, PUT, PATCH, DELETE |
+
+O Bearer do usuário (header ou cookie de sessão) segue para o domínio. Status, corpo,
+`Content-Type` e `Location` sobem intactos. Domínio fora do ar → `503` `problem+json`
+com `code: BFF-DOWNSTREAM-UNAVAILABLE`.
+
+`EMPLOYEES_BASE_URL` é só a origem HTTP (sem `/api/v1`); o prefixo do contrato é
+montado no serviço.
+
 ## Módulo `reservations` (Grupo 03)
 
 **Proxy puro** (o `bff.yaml` não pede composição para reservations), com os mesmos paths do contrato
@@ -104,7 +124,7 @@ do contexto (`docs/open-api/grupo03-reservations-api.yaml` do base):
   `problem+json`, sem chamar o backend. Keycloak fora do ar → `503`. Só `node:crypto`, sem lib nova.
 - O mesmo `Authorization: Bearer` segue para o backend. Query vai como chegou (`{gteq}`, `%25`…);
   o PATCH (`application/merge-patch+json`) chega cru.
-- Resposta do backend sobe intacta: status, corpo, `Content-Type` e `Location`.
+- Resposta do backend sobe intacta: status, corpo, `Content-Type` e os cabeçalhos que o `DownstreamService` seleciona (`Location`, `X-Total-Count`, `Retry-After`, `WWW-Authenticate`, `ETag`, `Last-Modified`, `Cache-Control`), como pede a SPEC-bff (CAP-1).
 - Backend fora do ar, timeout ou circuito aberto → `503` `problem+json` no formato do contrato do
   reservations (sem `code`: lá `code` é só `FR-n`).
 
@@ -137,10 +157,11 @@ domínio, cancelar por merge-patch, 409 FR-30, excluir e 404.
 | Pasta | Dono |
 |---|---|
 | `src/modules/classes/` | Grupo 01 |
+| `src/modules/courses/` | Grupo 05 |
+| `src/modules/employees/` | proxy employees (malha) |
 | `src/modules/reservations/` | Grupo 03 |
 | `src/modules/rooms/` | Grupo 08 |
 | `src/modules/students/` | Grupo 04 |
-| `src/modules/courses/` | Grupo 05 |
 | `src/modules/lessons/`, `src/modules/professors/`, … | um grupo cada |
 | `src/modules/ocupacao/` | FR-29, dono único a definir |
 | `common/` | compartilhado |
