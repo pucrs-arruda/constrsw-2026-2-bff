@@ -10,6 +10,6 @@ semantic changes. They have no external references. Validate offline with
 `classes`. The base's closed Course plus `allOf` would reject the added field.
 Both the initial failure and the corrected composed payload are covered by tests.
 
-This snapshot documents Courses. The inherited Rooms module still follows its
-older `/v1/rooms` proxy contract; its owner must reconcile it with the current
-base `/api/v1/rooms` composition contract.
+O Grupo 08 acrescenta 12 operações sob `/api/v1/rooms`. Os dois GETs principais
+usam `RoomView`, com o array obrigatório `classes` do semestre em curso.
+`npm run test:contract` também confere essa contribuição.
