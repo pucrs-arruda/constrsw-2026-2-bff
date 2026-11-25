@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './common/health/health.controller';
 import { HttpMetrics, MetricsController } from './common/health/http-metrics';
 import { CoursesModule } from './modules/courses/courses.module';
+import { EmployeesModule } from './modules/employees/employees.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { StudentsModule } from './modules/students/students.module';
@@ -20,6 +21,7 @@ import { StudentsModule } from './modules/students/students.module';
 	imports: [
 		ConfigModule.forRoot({ isGlobal: true }),
 		CoursesModule,
+		EmployeesModule,
 		ReservationsModule,
 		RoomsModule,
 		StudentsModule,
