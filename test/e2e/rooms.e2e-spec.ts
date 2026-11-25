@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { currentSemester, http, setting, urls, waitForBff } from './support/e2e-env';
+import { currentSemester, defaultPassword, http, setting, urls, waitForBff } from './support/e2e-env';
 
 jest.setTimeout(120_000);
 
@@ -50,7 +50,7 @@ describe('BFF rooms — fim a fim', () => {
 		bff = urls.bff();
 		classesUrl = urls.context('classes', '8182');
 		await waitForBff();
-		const password = setting('E2E_PASSWORD');
+		const password = defaultPassword();
 		token = await login('admin@pucrs.br', password);
 		studentToken = await login('student@pucrs.br', setting('E2E_STUDENT_PASSWORD', password));
 	});
