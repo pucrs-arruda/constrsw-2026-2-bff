@@ -104,7 +104,7 @@ do contexto (`docs/open-api/grupo03-reservations-api.yaml` do base):
   `problem+json`, sem chamar o backend. Keycloak fora do ar → `503`. Só `node:crypto`, sem lib nova.
 - O mesmo `Authorization: Bearer` segue para o backend. Query vai como chegou (`{gteq}`, `%25`…);
   o PATCH (`application/merge-patch+json`) chega cru.
-- Resposta do backend sobe intacta: status, corpo, `Content-Type` e `Location`.
+- Resposta do backend sobe intacta: status, corpo, `Content-Type` e os cabeçalhos que o `DownstreamService` seleciona (`Location`, `X-Total-Count`, `Retry-After`, `WWW-Authenticate`, `ETag`, `Last-Modified`, `Cache-Control`), como pede a SPEC-bff (CAP-1).
 - Backend fora do ar, timeout ou circuito aberto → `503` `problem+json` no formato do contrato do
   reservations (sem `code`: lá `code` é só `FR-n`).
 

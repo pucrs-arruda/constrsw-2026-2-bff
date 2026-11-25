@@ -92,7 +92,12 @@ export class ReservationsController {
 		if (result.contentType) {
 			response.setHeader('content-type', result.contentType);
 		}
-		if (result.location) {
+		// SPEC-bff CAP-1: o proxy repassa os cabeçalhos do domínio que o DownstreamService seleciona
+		// (Location, X-Total-Count, Retry-After, WWW-Authenticate, ETag, Last-Modified, Cache-Control).
+		for (const [name, value] of Object.entries(result.headers ?? {})) {
+			response.setHeader(name, value);
+		}
+		if (result.location && !result.headers?.location) {
 			response.setHeader('location', result.location);
 		}
 		response.status(result.status);
