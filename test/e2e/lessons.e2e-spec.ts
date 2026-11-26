@@ -1,5 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { accessToken, http, urls, waitForBff } from './support/e2e-env';
+import { defaultPassword, http, setting, urls, waitForBff } from './support/e2e-env';
+
+// OAuth obtains the JWT over the internal Keycloak URL, matching the issuer trusted
+// by Lessons. Direct login through localhost can produce a different issuer.
+async function oauthToken(username: string): Promise<string> {
+	const oauth = setting('E2E_OAUTH_URL', `http://localhost:${setting('OAUTH_EXTERNAL_API_PORT', '8181')}`);
+	const result = await http('POST', `${oauth}/login`, {
+		body: { username, password: defaultPassword() },
+	});
+	if (result.status !== 201 || typeof result.body?.access_token !== 'string') {
+		throw new Error(`OAuth login failed: HTTP ${result.status}`);
+	}
+	return result.body.access_token;
+}
 
 // Stack real: UUIDs inexistentes cobrem as 13 operações sem criar massa de domínio.
 // CRUD e geração com sucesso dependem do alinhamento do contrato de Classes.
@@ -29,7 +42,7 @@ describe('BFF Lessons — autenticação e recusas idempotentes na stack real', 
 
 	beforeAll(async () => {
 		await waitForBff();
-		token = await accessToken('coordinator@pucrs.br');
+		token = await oauthToken('coordinator@pucrs.br');
 	});
 
 	it.each([undefined, 'invalid'])('token ausente/inválido é recusado pelo domínio', async badToken => {
@@ -48,7 +61,7 @@ describe('BFF Lessons — autenticação e recusas idempotentes na stack real', 
 	});
 
 	it('aluno não pode gerar aulas', async () => {
-		const student = await accessToken('student@pucrs.br');
+		const student = await oauthToken('student@pucrs.br');
 		const result = await http('POST', urls.bff() + prefix + '/generate', {
 			token: student, body: { classId: missingClass },
 		});
