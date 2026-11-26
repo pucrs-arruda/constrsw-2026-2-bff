@@ -6,6 +6,7 @@ import { HttpMetrics, MetricsController } from './common/health/http-metrics';
 import { ClassesModule } from './modules/classes/classes.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { EmployeesModule } from './modules/employees/employees.module';
+import { LessonsModule } from './modules/lessons/lessons.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
@@ -25,6 +26,7 @@ import { StudentsModule } from './modules/students/students.module';
 		ClassesModule,
 		CoursesModule,
 		EmployeesModule,
+		LessonsModule,
 		ReservationsModule,
 		ResourcesModule,
 		RoomsModule,
