@@ -18,6 +18,7 @@
     "test:e2e:courses": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/courses.e2e-spec.ts",
     "test:e2e:rooms": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/rooms.e2e-spec.ts",
     "test:e2e:students": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/students.e2e-spec.ts",
+    "test:e2e:lessons": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/lessons.e2e-spec.ts",
     "test:e2e:reservations": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/reservations.e2e-spec.ts",
     "test:e2e:resources": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand test/e2e/resources.e2e-spec.ts"
   },

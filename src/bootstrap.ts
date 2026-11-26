@@ -26,6 +26,7 @@ export function configureApp(app: INestApplication): void {
 	app.use('/api/v1/courses', raw({ type: () => true, limit: '1mb' }));
 	app.use('/api/v1/resources', raw({ type: () => true, limit: '1mb' }));
 	app.use('/api/v1/rooms', raw({ type: () => true, limit: '1mb' }));
+	app.use('/api/v1/lessons', raw({ type: () => true, limit: '1mb' }));
 	app.use(json({ limit: '1mb' }));
 	app.use(urlencoded({ extended: true, limit: '1mb' }));
 }
