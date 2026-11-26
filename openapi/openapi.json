@@ -765,6 +765,999 @@
           }
         }
       }
+    },
+    "/api/v1/lessons": {
+      "post": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "createLesson",
+        "summary": "Criar aula avulsa da turma",
+        "description": "Cria uma aula da turma em uma data e faixa, opcionalmente com tópicos, na mesma transação. Valida a turma pela API classes; a data deve estar no período da turma e cair de segunda a sábado. Retorna 409 se a turma já tiver aula nessa data e faixa. O servidor deriva effectiveRoomId.",
+        "responses": {
+          "201": {
+            "description": "Aula criada com seus tópicos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/Lesson"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                      "date": "2026-11-05",
+                      "timeSlotId": "H",
+                      "modality": "IN_PERSON",
+                      "hasAssessment": false,
+                      "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                      "topics": [
+                        {
+                          "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 1,
+                          "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "statement": "Introdução a contratos OpenAPI 3.1."
+                        },
+                        {
+                          "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 2,
+                          "statement": "Exercício de modelagem de filtros."
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URI do recurso criado.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "example": "/api/v1/lessons/6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35"
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonCreate"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                    "date": "2026-11-05",
+                    "timeSlotId": "H",
+                    "modality": "IN_PERSON",
+                    "hasAssessment": false,
+                    "topics": [
+                      {
+                        "order": 1,
+                        "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                        "statement": "Introdução a contratos OpenAPI 3.1."
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "listLessons",
+        "summary": "Listar ou filtrar aulas",
+        "description": "Combina filtros com AND; sem operador explícito aplica igualdade. Sem filtros, uma coleção vazia retorna 200 com []. Com filtros sem correspondência, retorna 404, seguindo o exemplo do Moodle. Filtros desconhecidos ou operadores inválidos retornam 400. Não há paginação nesta entrega.",
+        "responses": {
+          "200": {
+            "description": "Lista de aulas com seus tópicos e sala efetiva.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonList"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": [
+                      {
+                        "id": "2b7f4d91-8c3e-4a16-b5d0-9e6a1f3c8b24",
+                        "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                        "date": "2026-11-03",
+                        "timeSlotId": "H",
+                        "modality": "IN_PERSON",
+                        "hasAssessment": false,
+                        "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                        "topics": []
+                      },
+                      {
+                        "id": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                        "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                        "date": "2026-11-05",
+                        "timeSlotId": "H",
+                        "modality": "IN_PERSON",
+                        "hasAssessment": false,
+                        "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                        "topics": [
+                          {
+                            "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                            "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                            "order": 1,
+                            "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                            "statement": "Introdução a contratos OpenAPI 3.1."
+                          },
+                          {
+                            "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                            "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                            "order": 2,
+                            "statement": "Exercício de modelagem de filtros."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/ClassIdFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/DateFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/TimeSlotIdFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/ModalityFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/HasAssessmentFilter"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lessons/generate": {
+      "post": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "generateLessons",
+        "summary": "Gerar aulas a partir do esqueleto da turma",
+        "description": "Chamado somente pela API classes após confirmar a abertura da turma. Lê a turma (período e WeeklySlot) e cria uma aula IN_PERSON, sem avaliação e sem tópicos, para cada par (dia, faixa) entre o início e o fim do período; feriados não são excluídos. Operação atômica. Retorna 409 se a turma já possuir aulas geradas.",
+        "responses": {
+          "201": {
+            "description": "Aulas geradas, em ordem de data e faixa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonList"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": [
+                      {
+                        "id": "2b7f4d91-8c3e-4a16-b5d0-9e6a1f3c8b24",
+                        "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                        "date": "2026-11-03",
+                        "timeSlotId": "H",
+                        "modality": "IN_PERSON",
+                        "hasAssessment": false,
+                        "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                        "topics": []
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonGenerate"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lessons/{lessonId}": {
+      "parameters": [
+        {
+          "$ref": "./domains/lessons.openapi.json#/components/parameters/LessonId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "getLesson",
+        "summary": "Consultar aula por ID",
+        "description": "Retorna a aula com tópicos e sala efetiva já resolvida.",
+        "responses": {
+          "200": {
+            "description": "Aula completa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/Lesson"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                      "date": "2026-11-05",
+                      "timeSlotId": "H",
+                      "modality": "IN_PERSON",
+                      "hasAssessment": false,
+                      "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                      "topics": [
+                        {
+                          "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 1,
+                          "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "statement": "Introdução a contratos OpenAPI 3.1."
+                        },
+                        {
+                          "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 2,
+                          "statement": "Exercício de modelagem de filtros."
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "replaceLesson",
+        "summary": "Substituir campos editáveis da aula",
+        "description": "Substitui modality e hasAssessment. classId, date e timeSlotId são imutáveis e não podem ser enviados. Preserva IDs e a coleção de tópicos. Somente professor atribuído à turma.",
+        "responses": {
+          "200": {
+            "description": "Aula completa após substituição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/Lesson"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                      "date": "2026-11-05",
+                      "timeSlotId": "H",
+                      "modality": "IN_PERSON",
+                      "hasAssessment": true,
+                      "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                      "topics": [
+                        {
+                          "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 1,
+                          "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "statement": "Introdução a contratos OpenAPI 3.1."
+                        },
+                        {
+                          "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 2,
+                          "statement": "Exercício de modelagem de filtros."
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonUpdate"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "modality": "IN_PERSON",
+                    "hasAssessment": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "patchLesson",
+        "summary": "Alterar parcialmente a aula",
+        "description": "Objeto JSON com ao menos um campo editável. Campos omitidos permanecem inalterados. Não é JSON Patch nem JSON Merge Patch; null, campos imutáveis e alterações diretas na coleção não são aceitos. Mudar para REMOTE remove effectiveRoomId da resposta.",
+        "responses": {
+          "200": {
+            "description": "Aula completa após alteração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/Lesson"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "classId": "b3e8f0d2-71a4-4c9e-8f25-3d6a9c0e1f47",
+                      "date": "2026-11-05",
+                      "timeSlotId": "H",
+                      "modality": "IN_PERSON",
+                      "hasAssessment": true,
+                      "effectiveRoomId": "d9a4c3b1-5e2f-4a78-9c60-1b7e2f8a4d93",
+                      "topics": [
+                        {
+                          "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 1,
+                          "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                          "statement": "Introdução a contratos OpenAPI 3.1."
+                        },
+                        {
+                          "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                          "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                          "order": 2,
+                          "statement": "Exercício de modelagem de filtros."
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonPatch"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "hasAssessment": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Lessons"
+        ],
+        "operationId": "deleteLesson",
+        "summary": "Excluir aula e seus tópicos",
+        "description": "Exclusão lógica (`enabled=false`) da aula e dos tópicos na mesma transação. Retorna 409 se houver reserva vinculada à aula na API reservations.",
+        "responses": {
+          "204": {
+            "description": "Aula e seus tópicos excluídos; sem corpo."
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lessons/{lessonId}/topics": {
+      "parameters": [
+        {
+          "$ref": "./domains/lessons.openapi.json#/components/parameters/LessonId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "createLessonTopic",
+        "summary": "Adicionar tópico à aula",
+        "description": "O servidor atribui o ID e o vínculo à aula do path. Retorna 409 se a ordem já estiver em uso na aula. Valida syllabusItemId pela API courses quando informado.",
+        "responses": {
+          "201": {
+            "description": "Tópico criado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopic"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                      "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "order": 1,
+                      "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "statement": "Introdução a contratos OpenAPI 3.1."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "URI do recurso criado.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "example": "/api/v1/lessons/6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35/topics/0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18"
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopicCreate"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "order": 1,
+                    "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                    "statement": "Introdução a contratos OpenAPI 3.1."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "listLessonTopics",
+        "summary": "Listar ou filtrar tópicos da aula",
+        "description": "Checa a existência da aula antes da busca. Combina filtros com AND e limita o resultado aos tópicos dessa aula, ordenados por ordem. Com filtros sem correspondência, retorna 404. Sem paginação; atributos ou operadores desconhecidos geram 400.",
+        "responses": {
+          "200": {
+            "description": "Tópicos da aula que atendem aos filtros.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopicList"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": [
+                      {
+                        "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                        "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                        "order": 1,
+                        "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                        "statement": "Introdução a contratos OpenAPI 3.1."
+                      },
+                      {
+                        "id": "5a3e9c17-2d84-4b6f-9e01-7c4d8b2a6f30",
+                        "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                        "order": 2,
+                        "statement": "Exercício de modelagem de filtros."
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/OrderFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/StatementFilter"
+          },
+          {
+            "$ref": "./domains/lessons.openapi.json#/components/parameters/SyllabusItemIdFilter"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lessons/{lessonId}/topics/{topicId}": {
+      "parameters": [
+        {
+          "$ref": "./domains/lessons.openapi.json#/components/parameters/LessonId"
+        },
+        {
+          "$ref": "./domains/lessons.openapi.json#/components/parameters/TopicId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "getLessonTopic",
+        "summary": "Consultar tópico da aula",
+        "description": "Retorna 404 se a aula não existir, se o tópico não existir ou se pertencer a outra aula.",
+        "responses": {
+          "200": {
+            "description": "Tópico completo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopic"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                      "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "order": 1,
+                      "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "statement": "Introdução a contratos OpenAPI 3.1."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "replaceLessonTopic",
+        "summary": "Substituir tópico da aula",
+        "description": "Checa o vínculo com a aula do path. Substitui os dados editáveis e remove opcionais omitidos, mantendo ao menos syllabusItemId ou statement. Preserva id e lessonId; ordem repetida retorna 409.",
+        "responses": {
+          "200": {
+            "description": "Tópico completo após substituição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopic"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                      "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "order": 1,
+                      "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "statement": "Contratos OpenAPI 3.1 e JSON Schema."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopicUpdate"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "order": 1,
+                    "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                    "statement": "Contratos OpenAPI 3.1 e JSON Schema."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "patchLessonTopic",
+        "summary": "Alterar parcialmente o tópico",
+        "description": "Checa o vínculo com a aula do path. Objeto JSON com ao menos um atributo editável; omissões preservam valores. null e alterações de id ou lessonId não são aceitos. Ordem repetida retorna 409.",
+        "responses": {
+          "200": {
+            "description": "Tópico completo após alteração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopic"
+                },
+                "examples": {
+                  "exemplo": {
+                    "value": {
+                      "id": "0c7d5e2a-9b14-4f3e-a861-5c2b7d9e0f18",
+                      "lessonId": "6f1c2a9e-3b7d-4c51-9a2e-8d4f0b1c7e35",
+                      "order": 1,
+                      "syllabusItemId": "8e2b6f41-c3d7-4a95-b0e8-7f1a4c6d2b59",
+                      "statement": "Revisão de JSON Schema 2020-12."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error409"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./domains/lessons.openapi.json#/components/schemas/LessonTopicPatch"
+              },
+              "examples": {
+                "exemplo": {
+                  "value": {
+                    "statement": "Revisão de JSON Schema 2020-12."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Lesson topics"
+        ],
+        "operationId": "deleteLessonTopic",
+        "summary": "Excluir tópico da aula",
+        "description": "Checa o vínculo com a aula do path. Uma aula pode ficar sem tópicos.",
+        "responses": {
+          "204": {
+            "description": "Tópico excluído; sem corpo."
+          },
+          "400": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error404"
+          },
+          "503": {
+            "$ref": "./domains/lessons.openapi.json#/components/responses/Error503"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "bffSession": []
+          }
+        ]
+      }
     }
   },
   "components": {

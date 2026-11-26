@@ -13,6 +13,8 @@ Usa `LESSONS_BASE_URL` (origem, default `http://lessons:8108`) e as variáveis e
 tentativa. Rede, timeout e circuito aberto retornam 503 no envelope `LE-503`.
 
 Validação: `npm test -- --runInBand lessons` e `npm run build`.
+O snapshot `openapi/` inclui Lessons e seus schemas; `npm run test:contract`
+verifica as 13 operações e as referências offline.
 Com a stack real (BFF, Lessons, Classes, OAuth/Keycloak e dependências) disponível:
 `npm run test:e2e:lessons`. O E2E compara as 13 operações com o domínio usando UUIDs
 inexistentes, sem criar dados. CRUD e geração com sucesso ainda precisam do contrato
